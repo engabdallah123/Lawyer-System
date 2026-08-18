@@ -1,0 +1,197 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Tasks.Commands.CreateLegalTask
+@using global::App.Domain.Tasks.Enums
+@using global::App.Infrastructure.Identity.DTOs
+@using global::App.Infrastructure.Identity.Services
+@inject IMediator Mediator
+@inject IIdentityService IdentityService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Task Title -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_title"
+                                  Label="عنوان المهمة *"
+                                  Required="true"
+                                  RequiredError="عنوان المهمة مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Placeholder="مثال: إعداد لائحة الدعوى أو حضور جلسة الخبير..." />
+                </MudItem>
+
+                <!-- Assigned User Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string"
+                               Label="المكلف بالمهمة *"
+                               @bind-Value="_assignedToUserId"
+                               Required="true"
+                               RequiredError="يرجى اختيار المكلف"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var user in _users)
+                        {
+                            <MudSelectItem Value="@user.Id">@user.FullName (@user.JobTitle ?? "عضو فريق")</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Linked Case -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="القضية المرتبطة (اختياري)"
+                               @bind-Value="_caseId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@((Guid?)c.Id)">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Priority -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="TaskPriority"
+                               Label="أولوية المهمة *"
+                               @bind-Value="_priority"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@TaskPriority.Low">منخفضة (Low)</MudSelectItem>
+                        <MudSelectItem Value="@TaskPriority.Normal">عادية (Normal)</MudSelectItem>
+                        <MudSelectItem Value="@TaskPriority.High">عالية (High)</MudSelectItem>
+                        <MudSelectItem Value="@TaskPriority.Urgent">عاجلة جداً (Urgent)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Due Date -->
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_dueDate"
+                                   Label="تاريخ الاستحقاق والإنجاز *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Description -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="تفاصيل وتوجيهات المهمة"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>إنشاء المهمة</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid? PreselectedCaseId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _title = string.Empty;
+    private string _assignedToUserId = string.Empty;
+    private Guid? _caseId;
+    private TaskPriority _priority = TaskPriority.Normal;
+    private DateTime? _dueDate = DateTime.Today.AddDays(3);
+    private string? _description;
+
+    private List<UserDto> _users = [];
+    private List<CaseDto> _cases = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _caseId = PreselectedCaseId;
+
+        try
+        {
+            var users = await IdentityService.GetUsersAsync();
+            _users = users.Where(u => u.IsActive).ToList();
+            if (_users.Count > 0)
+                _assignedToUserId = _users[0].Id;
+
+            var casesResult = await Mediator.Send(new GetCasesQuery(PageSize: 100));
+            if (casesResult.IsSuccess && casesResult.Value != null)
+                _cases = casesResult.Value.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل البيانات: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || string.IsNullOrEmpty(_assignedToUserId))
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreateLegalTaskCommand(
+                _caseId,
+                _assignedToUserId,
+                _title,
+                _description,
+                _dueDate,
+                _priority,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تكليف المهمة بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

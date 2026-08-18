@@ -1,0 +1,358 @@
+@page "/cases"
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Lookups.DTOs
+@using global::App.Application.Lookups.Queries.GetCaseStatuses
+@using global::App.Application.Lookups.Queries.GetCaseTypes
+@using global::App.Application.Lookups.Queries.GetCourts
+@using global::App.Web.Components.Pages.Cases.Dialogs
+@using global::App.Web.Components.Pages.Hearings.Dialogs
+@using global::App.Web.Components.Pages.Finance.Dialogs
+@using global::App.Web.Components.Pages.Documents.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>القضايا والدعاوى | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & New Case Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            ملفات القضايا والدعاوى ⚖️
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            إدارة الدعاوى المنظورة، المحاكم، الدوائر القضائية، والمراحل الإجرائية
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.AddCircle"
+               OnClick="@(() => OpenCreateCaseDialog())"
+               Size="Size.Medium">
+        فتح ملف قضية جديدة
+    </MudButton>
+</div>
+
+<!-- Search & Filters -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudCardContent Class="py-3 px-4">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="_searchTerm"
+                              Placeholder="بحث برقم القضية، العنوان، المحكمة، أو القاضي..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Small"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Clearable="true"
+                              OnClearButtonClick="OnSearch"
+                              OnKeyUp="HandleSearchKeyUp" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int?"
+                           Label="نوع القضية"
+                           Value="@_selectedCaseTypeId"
+                           ValueChanged="OnCaseTypeFilterChanged"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Clearable="true">
+                    @foreach (var type in _caseTypes)
+                    {
+                        <MudSelectItem Value="@((int?)type.Id)">@type.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int?"
+                           Label="حالة القضية"
+                           Value="@_selectedStatusId"
+                           ValueChanged="OnStatusFilterChanged"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Clearable="true">
+                    @foreach (var status in _caseStatuses)
+                    {
+                        <MudSelectItem Value="@((int?)status.Id)">@status.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" md="2" Class="d-flex align-center">
+                <MudCheckBox T="bool?"
+                             Value="@_isClosedFilter"
+                             ValueChanged="OnClosedFilterChanged"
+                             Label="القضايا المغلقة فقط"
+                             Color="Color.Secondary"
+                             Dense="true" />
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<!-- Cases Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل ملفات القضايا...</span>
+            </div>
+        }
+        else if (_cases.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد قضايا مسجلة</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك فتح ملف قضية جديدة بالضغط على الزر بالأعلى</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_cases" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>الرقم الداخلي / المحكمة</MudTh>
+                    <MudTh>موضوع القضية</MudTh>
+                    <MudTh>نوع القضية</MudTh>
+                    <MudTh>المحكمة / الدائرة</MudTh>
+                    <MudTh>المرحلة الحالية</MudTh>
+                    <MudTh>المطالبة المالية</MudTh>
+                    <MudTh>حالة الملف</MudTh>
+                    <MudTh>تاريخ الفتح</MudTh>
+                    <MudTh Style="text-align: center;">الإجراءات</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="الرقم">
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold text-primary">@context.InternalNumber</span>
+                            @if (!string.IsNullOrEmpty(context.CourtNumber))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">رقم المحكمة: @context.CourtNumber</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="الموضوع">
+                        <span class="fw-bold">@context.Title</span>
+                    </MudTd>
+                    <MudTd DataLabel="النوع">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                            @context.CaseTypeName
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="المحكمة">
+                        <div class="d-flex flex-column">
+                            <span>@(context.CourtName ?? "-")</span>
+                            @if (!string.IsNullOrEmpty(context.Circuit))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">دائرة: @context.Circuit</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="المرحلة">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">
+                            @(context.CurrentStage ?? "قيد النظر")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="المطالبة">
+                        @(context.ClaimAmount.HasValue ? context.ClaimAmount.Value.ToString("N2") + " ر.س" : "-")
+                    </MudTd>
+                    <MudTd DataLabel="الحالة">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled"
+                                 Color="@GetStatusColor(context.CaseStatusName)">
+                            @context.CaseStatusName
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="تاريخ الفتح">
+                        @context.OpenDate.ToString("yyyy/MM/dd")
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomLeft">
+                            <MudMenuItem Icon="@Icons.Material.Filled.PersonAdd" OnClick="@(() => OpenAssignLawyerDialog(context))">
+                                إسناد / تعيين محامي
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.CalendarMonth" OnClick="@(() => OpenCreateHearingDialog(context))">
+                                جدولة جلسة بالمحكمة
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Receipt" OnClick="@(() => OpenCreateInvoiceDialog(context))">
+                                إصدار فاتورة أتعاب
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.UploadFile" OnClick="@(() => OpenUploadDocumentDialog(context))">
+                                رفع مستند أو مذكرة
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string? ClientId { get; set; }
+
+    private List<CaseDto> _cases = [];
+    private bool _isLoading = true;
+
+    private string? _searchTerm;
+    private int? _selectedCaseTypeId;
+    private int? _selectedStatusId;
+    private bool? _isClosedFilter;
+
+    private List<LookupDto> _caseTypes = [];
+    private List<LookupDto> _caseStatuses = [];
+    private List<LookupDto> _courts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookups();
+        await LoadCases();
+    }
+
+    private async Task LoadLookups()
+    {
+        try
+        {
+            var typesResult = await Mediator.Send(new GetCaseTypesQuery());
+            if (typesResult.IsSuccess && typesResult.Value != null)
+                _caseTypes = typesResult.Value.ToList();
+
+            var statusesResult = await Mediator.Send(new GetCaseStatusesQuery());
+            if (statusesResult.IsSuccess && statusesResult.Value != null)
+                _caseStatuses = statusesResult.Value.ToList();
+
+            var courtsResult = await Mediator.Send(new GetCourtsQuery());
+            if (courtsResult.IsSuccess && courtsResult.Value != null)
+                _courts = courtsResult.Value.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل القوائم الأساسية: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadCases()
+    {
+        _isLoading = true;
+        try
+        {
+            var query = new GetCasesQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+                CaseTypeId: _selectedCaseTypeId,
+                CaseStatusId: _selectedStatusId,
+                CourtId: null,
+                IsClosed: _isClosedFilter,
+                Page: 1,
+                PageSize: 50);
+
+            var result = await Mediator.Send(query);
+            if (result.IsSuccess && result.Value != null)
+            {
+                _cases = result.Value.ToList();
+            }
+            else
+            {
+                _cases = [];
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل القضايا: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetStatusColor(string statusName) => statusName switch
+    {
+        "مفتوحة" or "Open" => Color.Success,
+        "منظورة" or "In Progress" => Color.Primary,
+        "مغلقة" or "Closed" => Color.Dark,
+        "معلقة" or "Pending" => Color.Warning,
+        _ => Color.Info
+    };
+
+    private async Task OnCaseTypeFilterChanged(int? typeId)
+    {
+        _selectedCaseTypeId = typeId;
+        await LoadCases();
+    }
+
+    private async Task OnStatusFilterChanged(int? statusId)
+    {
+        _selectedStatusId = statusId;
+        await LoadCases();
+    }
+
+    private async Task OnClosedFilterChanged(bool? isClosed)
+    {
+        _isClosedFilter = isClosed;
+        await LoadCases();
+    }
+
+    private async Task OnSearch() => await LoadCases();
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadCases();
+    }
+
+    private async Task OpenCreateCaseDialog()
+    {
+        Guid? defaultClientId = null;
+        if (!string.IsNullOrEmpty(ClientId) && Guid.TryParse(ClientId, out var parsedGuid))
+            defaultClientId = parsedGuid;
+
+        var parameters = new DialogParameters { ["DefaultClientId"] = defaultClientId };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateCaseDialog>("فتح ملف قضية ودعوى جديدة", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadCases();
+    }
+
+    private async Task OpenAssignLawyerDialog(CaseDto caseItem)
+    {
+        var parameters = new DialogParameters { ["CaseItem"] = caseItem };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AssignLawyerDialog>("إسناد وتكليف محامي", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadCases();
+    }
+
+    private async Task OpenCreateHearingDialog(CaseDto caseItem)
+    {
+        var parameters = new DialogParameters { ["PreselectedCaseId"] = (Guid?)caseItem.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateHearingDialog>("جدولة جلسة محكمة", parameters, options);
+        await dialog.Result;
+    }
+
+    private async Task OpenCreateInvoiceDialog(CaseDto caseItem)
+    {
+        var parameters = new DialogParameters { ["PreselectedCaseId"] = (Guid?)caseItem.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateInvoiceDialog>("إصدار فاتورة أتعاب", parameters, options);
+        await dialog.Result;
+    }
+
+    private async Task OpenUploadDocumentDialog(CaseDto caseItem)
+    {
+        var parameters = new DialogParameters { ["PreselectedCaseId"] = (Guid?)caseItem.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UploadDocumentDialog>("رفع مستند أو مذكرة", parameters, options);
+        await dialog.Result;
+    }
+}

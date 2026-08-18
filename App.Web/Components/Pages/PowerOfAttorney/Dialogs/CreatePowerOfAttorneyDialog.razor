@@ -1,0 +1,208 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Application.PowerOfAttorney.Commands.CreatePowerOfAttorney
+@using global::App.Domain.Clients.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Client Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid"
+                               Label="الموكل (صاحب التوكيل) *"
+                               @bind-Value="_clientId"
+                               Required="true"
+                               RequiredError="يرجى اختيار الموكل"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var client in _clients)
+                        {
+                            var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+                            <MudSelectItem Value="@client.Id">@clientName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Optional Linked Case -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="ربط بقضية محددة (اختياري)"
+                               @bind-Value="_caseId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@((Guid?)c.Id)">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Power Number & Notary -->
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_powerNumber"
+                                  Label="رقم التوكيل الرسمي *"
+                                  Required="true"
+                                  RequiredError="رقم التوكيل مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_notaryName"
+                                  Label="جهة / كتابة العدل المصدرة"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Issue Date & Expiry Date -->
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_issueDate"
+                                   Label="تاريخ إصدار التوكيل *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_expiryDate"
+                                   Label="تاريخ انتهاء السريان (إن وجد)"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Notes -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="ملاحظات وحدود صلاحيات التوكيل"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Secondary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>حفظ التوكيل</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid? DefaultClientId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private Guid _clientId;
+    private Guid? _caseId;
+    private string _powerNumber = string.Empty;
+    private DateTime? _issueDate = DateTime.Today;
+    private DateTime? _expiryDate = DateTime.Today.AddYears(1);
+    private string? _notaryName;
+    private string? _notes;
+
+    private List<ClientDto> _clients = [];
+    private List<CaseDto> _cases = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (DefaultClientId.HasValue)
+            _clientId = DefaultClientId.Value;
+
+        try
+        {
+            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 100));
+            var casesTask = Mediator.Send(new GetCasesQuery(PageSize: 100));
+
+            await Task.WhenAll(clientsTask, casesTask);
+
+            if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
+            {
+                _clients = clientsTask.Result.Value.ToList();
+                if (_clientId == Guid.Empty && _clients.Count > 0)
+                    _clientId = _clients[0].Id;
+            }
+
+            if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
+            {
+                _cases = casesTask.Result.Value.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل البيانات: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _clientId == Guid.Empty)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreatePowerOfAttorneyCommand(
+                _clientId,
+                _caseId,
+                _powerNumber,
+                _issueDate ?? DateTime.Today,
+                _expiryDate,
+                _notaryName,
+                null,
+                null,
+                _notes,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تسجيل التوكيل الرسمي بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

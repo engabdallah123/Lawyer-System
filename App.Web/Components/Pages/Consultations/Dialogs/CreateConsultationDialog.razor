@@ -1,0 +1,174 @@
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Application.Consultations.Commands.CreateConsultation
+@using global::App.Domain.Clients.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Client Selection -->
+                <MudItem xs="12">
+                    <MudSelect T="Guid"
+                               Label="الموكل / طالب الاستشارة *"
+                               @bind-Value="_clientId"
+                               Required="true"
+                               RequiredError="يرجى اختيار الموكل"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var client in _clients)
+                        {
+                            var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+                            <MudSelectItem Value="@client.Id">@clientName (@client.Phone)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Subject -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_subject"
+                                  Label="موضوع / عنوان الاستشارة *"
+                                  Required="true"
+                                  RequiredError="موضوع الاستشارة مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Consultation Date & Fee -->
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_consultationDate"
+                                   Label="تاريخ موعد الاستشارة *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_fee"
+                                     Label="قيمة الأتعاب المقدرة (ر.س)"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Format="N2" />
+                </MudItem>
+
+                <!-- Description -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="تفاصيل ووقائع الاستشارة القانونية"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Notes / Legal Opinion -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="الرأي القانوني والتوصيات"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Tertiary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>تسجيل الاستشارة</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private Guid _clientId;
+    private string _subject = string.Empty;
+    private DateTime? _consultationDate = DateTime.Today;
+    private decimal? _fee;
+    private string? _description;
+    private string? _notes;
+
+    private List<ClientDto> _clients = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var clientsResult = await Mediator.Send(new GetClientsQuery(PageSize: 100));
+            if (clientsResult.IsSuccess && clientsResult.Value != null)
+            {
+                _clients = clientsResult.Value.ToList();
+                if (_clients.Count > 0)
+                    _clientId = _clients[0].Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل الموكلين: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _clientId == Guid.Empty)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreateConsultationCommand(
+                _clientId,
+                _consultationDate ?? DateTime.Today,
+                _subject,
+                _description,
+                _fee,
+                _notes,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تسجيل الاستشارة القانونية بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

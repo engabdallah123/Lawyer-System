@@ -1,0 +1,208 @@
+@page "/documents"
+@using global::App.Application.Documents.Commands.DeleteDocument
+@using global::App.Application.Documents.DTOs
+@using global::App.Application.Documents.Queries.GetDocuments
+@using global::App.Web.Components.Pages.Documents.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>الأرشيف والمستندات | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Upload Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            إدارة المستندات والأرشيف 📁
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            أرشيف المذكرات، لوائح الدعوى، العقود، والأحكام القضائية مع الإصدارات المتعددة
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.UploadFile"
+               OnClick="@(() => OpenUploadDialog())"
+               Size="Size.Medium">
+        رفع مستند جديد
+    </MudButton>
+</div>
+
+<!-- Search -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudCardContent Class="py-3 px-4">
+        <MudTextField @bind-Value="_searchTerm"
+                      Placeholder="بحث باسم المستند، الوصف، أو القضية..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Small"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Clearable="true"
+                      OnClearButtonClick="OnSearch"
+                      OnKeyUp="HandleSearchKeyUp"
+                      Style="max-width: 420px; width: 100%;" />
+    </MudCardContent>
+</MudCard>
+
+<!-- Documents Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل أرشيف المستندات...</span>
+            </div>
+        }
+        else if (_documents.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.FolderZip" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد مستندات مرفوعة</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك أرشفة أول مستند عبر زر الرفع أعلاه</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_documents" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>اسم المستند والملف</MudTh>
+                    <MudTh>التصنيف</MudTh>
+                    <MudTh>القضية / الموكل</MudTh>
+                    <MudTh>الإصدار</MudTh>
+                    <MudTh>الحجم</MudTh>
+                    <MudTh>تاريخ الرفع</MudTh>
+                    <MudTh Style="text-align: center;">الإجراءات</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="المستند">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" />
+                            <div>
+                                <span class="fw-bold">@context.Name</span>
+                                @if (!string.IsNullOrEmpty(context.CurrentFileName))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">@context.CurrentFileName</MudText>
+                                }
+                            </div>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="التصنيف">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                            @(context.DocumentTypeName ?? "عام")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="القضية">
+                        <div class="d-flex flex-column">
+                            @if (!string.IsNullOrEmpty(context.CaseInternalNumber))
+                            {
+                                <span class="text-primary fw-bold">@context.CaseInternalNumber</span>
+                            }
+                            @if (!string.IsNullOrEmpty(context.ClientName))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ClientName</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="الإصدار">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">
+                            v@(context.CurrentVersionNumber)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="الحجم">
+                        @(context.CurrentFileSize.HasValue ? $"{context.CurrentFileSize.Value / 1024} KB" : "-")
+                    </MudTd>
+                    <MudTd DataLabel="التاريخ">
+                        @context.CreatedAt.ToString("yyyy/MM/dd")
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteDoc(context))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<DocumentDto> _documents = [];
+    private bool _isLoading = true;
+    private string? _searchTerm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDocuments();
+    }
+
+    private async Task LoadDocuments()
+    {
+        _isLoading = true;
+        try
+        {
+            var query = new GetDocumentsQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+                Page: 1,
+                PageSize: 50);
+
+            var result = await Mediator.Send(query);
+            if (result.IsSuccess && result.Value != null)
+                _documents = result.Value.ToList();
+            else
+                _documents = [];
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل المستندات: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSearch() => await LoadDocuments();
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadDocuments();
+    }
+
+    private async Task OpenUploadDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UploadDocumentDialog>("رفع وتوثيق مستند جديد", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadDocuments();
+    }
+
+    private async Task DeleteDoc(DocumentDto doc)
+    {
+        bool? confirm = await DialogService.ShowMessageBoxAsync(
+            "تأكيد الحذف",
+            $"هل أنت متأكد من حذف المستند '{doc.Name}'؟",
+            yesText: "نعم، احذف", cancelText: "إلغاء");
+
+        if (confirm == true)
+        {
+            var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+            var command = new DeleteDocumentCommand(doc.Id, userName);
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم حذف المستند بنجاح", Severity.Success);
+                await LoadDocuments();
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+    }
+}

@@ -1,0 +1,375 @@
+@page "/finance"
+@using global::App.Application.Finance.DTOs
+@using global::App.Application.Finance.Queries.GetExpenses
+@using global::App.Application.Finance.Queries.GetFeeAgreements
+@using global::App.Application.Finance.Queries.GetFinancialSummary
+@using global::App.Application.Finance.Queries.GetInvoices
+@using global::App.Application.Finance.Queries.GetPayments
+@using global::App.Domain.Finance.Enums
+@using global::App.Web.Components.Pages.Finance.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>الإدارة المالية والحسابات | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Quick Action Buttons -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            الإدارة المالية والفواتير 💰
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            متابعة التحصيل، الفواتير الصادرة، سندات القبض، المصروفات وعقود الأتعاب
+        </MudText>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Receipt" OnClick="@(() => OpenCreateInvoiceDialog())" Size="Size.Small">
+            إصدار فاتورة
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Payments" OnClick="@(() => OpenCreatePaymentDialog())" Size="Size.Small">
+            سند قبض
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.MoneyOff" OnClick="@(() => OpenCreateExpenseDialog())" Size="Size.Small">
+            تسجيل مصروف
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Description" OnClick="@(() => OpenCreateFeeAgreementDialog())" Size="Size.Small">
+            عقد أتعاب
+        </MudButton>
+    </div>
+</div>
+
+<!-- Financial Summary KPIs -->
+<MudGrid Spacing="3" Class="mb-6">
+    <MudItem xs="12" sm="6" md="2">
+        <MudCard Elevation="0" Class="glass-card border pa-3">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">إجمالي العقود</MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-primary">@(_summary?.TotalFeeAgreementsAmount.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="2">
+        <MudCard Elevation="0" Class="glass-card border pa-3">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">إجمالي المحصل</MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-success">@(_summary?.TotalCollectedPayments.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="0" Class="glass-card border pa-3">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">المتبقي والذمم المستحقة</MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-warning">@(_summary?.TotalOutstandingReceivables.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="2">
+        <MudCard Elevation="0" Class="glass-card border pa-3">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">المصروفات القضائية</MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-danger">@(_summary?.TotalExpenses.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard Elevation="0" Class="glass-card border pa-3">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">صافي الإيراد التشغيلي</MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-info">@(_summary?.NetRevenue.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<!-- Finance Tabs -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" ActivePanelIndexChanged="OnTabChanged">
+        <!-- 1. Invoices Tab -->
+        <MudTabPanel Text="الفواتير والمطالبات" Icon="@Icons.Material.Filled.Receipt">
+            <div class="pa-4">
+                @if (_isInvoicesLoading)
+                {
+                    <div class="d-flex justify-center pa-6"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+                }
+                else if (_invoices.Count == 0)
+                {
+                    <div class="text-center pa-6"><MudText Typo="Typo.body2" Color="Color.Secondary">لا توجد فواتير صادرة</MudText></div>
+                }
+                else
+                {
+                    <MudTable Items="@_invoices" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>رقم الفاتورة</MudTh>
+                            <MudTh>اسم الموكل</MudTh>
+                            <MudTh>تاريخ الإصدار</MudTh>
+                            <MudTh>تاريخ الاستحقاق</MudTh>
+                            <MudTh>الإجمالي</MudTh>
+                            <MudTh>المسدد</MudTh>
+                            <MudTh>الحالة</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="رقم الفاتورة"><span class="fw-bold text-primary">@context.InvoiceNumber</span></MudTd>
+                            <MudTd DataLabel="الموكل">@context.ClientName</MudTd>
+                            <MudTd DataLabel="الإصدار">@context.IssueDate.ToString("yyyy/MM/dd")</MudTd>
+                            <MudTd DataLabel="الاستحقاق">@(context.DueDate?.ToString("yyyy/MM/dd") ?? "-")</MudTd>
+                            <MudTd DataLabel="الإجمالي"><span class="fw-bold">@context.TotalAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="المسدد"><span class="text-success">@context.PaidAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="الحالة">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetInvoiceStatusColor(context.Status)">
+                                    @context.StatusName
+                                </MudChip>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </div>
+        </MudTabPanel>
+
+        <!-- 2. Payments Tab -->
+        <MudTabPanel Text="سندات القبض والتحصيل" Icon="@Icons.Material.Filled.Payments">
+            <div class="pa-4">
+                @if (_isPaymentsLoading)
+                {
+                    <div class="d-flex justify-center pa-6"><MudProgressCircular Indeterminate="true" Color="Color.Success" /></div>
+                }
+                else if (_payments.Count == 0)
+                {
+                    <div class="text-center pa-6"><MudText Typo="Typo.body2" Color="Color.Secondary">لا توجد سندات قبض مسجلة</MudText></div>
+                }
+                else
+                {
+                    <MudTable Items="@_payments" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>الموكل</MudTh>
+                            <MudTh>المبلغ المحصل</MudTh>
+                            <MudTh>طريقة الدفع</MudTh>
+                            <MudTh>رقم المرجع</MudTh>
+                            <MudTh>تاريخ السند</MudTh>
+                            <MudTh>المستلم</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="الموكل"><span class="fw-bold">@context.ClientName</span></MudTd>
+                            <MudTd DataLabel="المبلغ"><span class="fw-bold text-success">@context.Amount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="الطريقة"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.PaymentMethod</MudChip></MudTd>
+                            <MudTd DataLabel="المرجع">@(context.ReferenceNumber ?? "-")</MudTd>
+                            <MudTd DataLabel="التاريخ">@context.PaymentDate.ToString("yyyy/MM/dd")</MudTd>
+                            <MudTd DataLabel="المستلم">@context.ReceivedBy</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </div>
+        </MudTabPanel>
+
+        <!-- 3. Expenses Tab -->
+        <MudTabPanel Text="المصروفات القضائية" Icon="@Icons.Material.Filled.MoneyOff">
+            <div class="pa-4">
+                @if (_isExpensesLoading)
+                {
+                    <div class="d-flex justify-center pa-6"><MudProgressCircular Indeterminate="true" Color="Color.Error" /></div>
+                }
+                else if (_expenses.Count == 0)
+                {
+                    <div class="text-center pa-6"><MudText Typo="Typo.body2" Color="Color.Secondary">لا توجد مصروفات مسجلة</MudText></div>
+                }
+                else
+                {
+                    <MudTable Items="@_expenses" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>نوع المصروف</MudTh>
+                            <MudTh>المبلغ</MudTh>
+                            <MudTh>القضية المرتبطة</MudTh>
+                            <MudTh>القائم بالصرف</MudTh>
+                            <MudTh>تاريخ الصرف</MudTh>
+                            <MudTh>البيان</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="نوع المصروف"><MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@context.ExpenseType</MudChip></MudTd>
+                            <MudTd DataLabel="المبلغ"><span class="fw-bold text-danger">@context.Amount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="القضية">@(string.IsNullOrEmpty(context.CaseInternalNumber) ? "عام" : $"{context.CaseInternalNumber} - {context.CaseTitle}")</MudTd>
+                            <MudTd DataLabel="القائم بالصرف">@context.PaidBy</MudTd>
+                            <MudTd DataLabel="التاريخ">@context.ExpenseDate.ToString("yyyy/MM/dd")</MudTd>
+                            <MudTd DataLabel="البيان">@(context.Description ?? "-")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </div>
+        </MudTabPanel>
+
+        <!-- 4. Fee Agreements Tab -->
+        <MudTabPanel Text="عقود الأتعاب" Icon="@Icons.Material.Filled.Description">
+            <div class="pa-4">
+                @if (_isAgreementsLoading)
+                {
+                    <div class="d-flex justify-center pa-6"><MudProgressCircular Indeterminate="true" Color="Color.Primary" /></div>
+                }
+                else if (_agreements.Count == 0)
+                {
+                    <div class="text-center pa-6"><MudText Typo="Typo.body2" Color="Color.Secondary">لا توجد عقود أتعاب مسجلة</MudText></div>
+                }
+                else
+                {
+                    <MudTable Items="@_agreements" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>الموكل</MudTh>
+                            <MudTh>نوع العقد</MudTh>
+                            <MudTh>إجمالي العقد</MudTh>
+                            <MudTh>المسدد</MudTh>
+                            <MudTh>المتبقي</MudTh>
+                            <MudTh>تاريخ البدء</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="الموكل"><span class="fw-bold">@context.ClientName</span></MudTd>
+                            <MudTd DataLabel="نوع العقد"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.AgreementTypeName</MudChip></MudTd>
+                            <MudTd DataLabel="إجمالي العقد"><span class="fw-bold">@context.TotalAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="المسدد"><span class="text-success">@context.PaidAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="المتبقي"><span class="text-warning">@context.RemainingAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="تاريخ البدء">@context.StartDate.ToString("yyyy/MM/dd")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </div>
+        </MudTabPanel>
+    </MudTabs>
+</MudCard>
+
+@code {
+    private FinancialSummaryDto? _summary;
+    private List<InvoiceDto> _invoices = [];
+    private List<PaymentDto> _payments = [];
+    private List<ExpenseDto> _expenses = [];
+    private List<FeeAgreementDto> _agreements = [];
+
+    private bool _isInvoicesLoading = true;
+    private bool _isPaymentsLoading = false;
+    private bool _isExpensesLoading = false;
+    private bool _isAgreementsLoading = false;
+    private int _currentTabIndex = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSummary();
+        await LoadInvoices();
+    }
+
+    private async Task LoadSummary()
+    {
+        try
+        {
+            var result = await Mediator.Send(new GetFinancialSummaryQuery());
+            if (result.IsSuccess)
+                _summary = result.Value;
+        }
+        catch { }
+    }
+
+    private async Task OnTabChanged(int index)
+    {
+        _currentTabIndex = index;
+        switch (index)
+        {
+            case 0: await LoadInvoices(); break;
+            case 1: await LoadPayments(); break;
+            case 2: await LoadExpenses(); break;
+            case 3: await LoadAgreements(); break;
+        }
+    }
+
+    private async Task LoadInvoices()
+    {
+        _isInvoicesLoading = true;
+        try
+        {
+            var res = await Mediator.Send(new GetInvoicesQuery(PageSize: 50));
+            if (res.IsSuccess && res.Value != null) _invoices = res.Value.ToList();
+        }
+        catch { }
+        finally { _isInvoicesLoading = false; }
+    }
+
+    private async Task LoadPayments()
+    {
+        _isPaymentsLoading = true;
+        try
+        {
+            var res = await Mediator.Send(new GetPaymentsQuery(PageSize: 50));
+            if (res.IsSuccess && res.Value != null) _payments = res.Value.ToList();
+        }
+        catch { }
+        finally { _isPaymentsLoading = false; }
+    }
+
+    private async Task LoadExpenses()
+    {
+        _isExpensesLoading = true;
+        try
+        {
+            var res = await Mediator.Send(new GetExpensesQuery(PageSize: 50));
+            if (res.IsSuccess && res.Value != null) _expenses = res.Value.ToList();
+        }
+        catch { }
+        finally { _isExpensesLoading = false; }
+    }
+
+    private async Task LoadAgreements()
+    {
+        _isAgreementsLoading = true;
+        try
+        {
+            var res = await Mediator.Send(new GetFeeAgreementsQuery(PageSize: 50));
+            if (res.IsSuccess && res.Value != null) _agreements = res.Value.ToList();
+        }
+        catch { }
+        finally { _isAgreementsLoading = false; }
+    }
+
+    private Color GetInvoiceStatusColor(InvoiceStatus status) => status switch
+    {
+        InvoiceStatus.Paid => Color.Success,
+        InvoiceStatus.Issued => Color.Primary,
+        InvoiceStatus.PartiallyPaid => Color.Warning,
+        InvoiceStatus.Overdue => Color.Error,
+        _ => Color.Default
+    };
+
+    private async Task OpenCreateInvoiceDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateInvoiceDialog>("إصدار فاتورة أتعاب", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadSummary();
+            await LoadInvoices();
+        }
+    }
+
+    private async Task OpenCreatePaymentDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePaymentDialog>("تسجيل سند قبض وتحصيل", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadSummary();
+            await LoadPayments();
+        }
+    }
+
+    private async Task OpenCreateExpenseDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateExpenseDialog>("تسجيل سند صرف ومصروف قضائي", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadSummary();
+            await LoadExpenses();
+        }
+    }
+
+    private async Task OpenCreateFeeAgreementDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateFeeAgreementDialog>("إبرام عقد أتعاب جديد", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadSummary();
+            await LoadAgreements();
+        }
+    }
+}

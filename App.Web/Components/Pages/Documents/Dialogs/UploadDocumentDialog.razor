@@ -1,0 +1,218 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Application.Documents.Commands.CreateDocument
+@using global::App.Application.Lookups.DTOs
+@using global::App.Application.Lookups.Queries.GetDocumentTypes
+@using global::App.Domain.Clients.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Document Name -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_name"
+                                  Label="عنوان / اسم المستند *"
+                                  Required="true"
+                                  RequiredError="اسم المستند مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Document Type -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="int?"
+                               Label="نوع / تصنيف المستند"
+                               @bind-Value="_documentTypeId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var type in _documentTypes)
+                        {
+                            <MudSelectItem Value="@((int?)type.Id)">@type.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Linked Case -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="القضية المرتبطة"
+                               @bind-Value="_caseId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@((Guid?)c.Id)">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Linked Client -->
+                <MudItem xs="12">
+                    <MudSelect T="Guid?"
+                               Label="الموكل المرتبط"
+                               @bind-Value="_clientId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var client in _clients)
+                        {
+                            var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+                            <MudSelectItem Value="@((Guid?)client.Id)">@clientName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- File Picker Simulation / Upload info -->
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_fileName"
+                                  Label="اسم الملف مع الامتداد *"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Placeholder="مثال: مذكرة_دفاع_اولى.pdf" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_filePath"
+                                  Label="المسار أو الرابط التخزيني *"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Description & Notes -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="وصف محتوى المستند"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>رفع وتوثيق المستند</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid? PreselectedCaseId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _name = string.Empty;
+    private int? _documentTypeId;
+    private Guid? _caseId;
+    private Guid? _clientId;
+    private string _fileName = "مستند_قانوني.pdf";
+    private string _filePath = "/uploads/documents/doc_" + Guid.NewGuid().ToString("N")[..8] + ".pdf";
+    private string? _description;
+
+    private List<LookupDto> _documentTypes = [];
+    private List<CaseDto> _cases = [];
+    private List<ClientDto> _clients = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _caseId = PreselectedCaseId;
+
+        try
+        {
+            var typesTask = Mediator.Send(new GetDocumentTypesQuery());
+            var casesTask = Mediator.Send(new GetCasesQuery(PageSize: 100));
+            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 100));
+
+            await Task.WhenAll(typesTask, casesTask, clientsTask);
+
+            if (typesTask.Result.IsSuccess && typesTask.Result.Value != null)
+                _documentTypes = typesTask.Result.Value.ToList();
+
+            if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
+                _cases = casesTask.Result.Value.ToList();
+
+            if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
+                _clients = clientsTask.Result.Value.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل البيانات: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreateDocumentCommand(
+                _caseId,
+                _clientId,
+                _documentTypeId,
+                _name,
+                _description,
+                _filePath,
+                _fileName,
+                "application/pdf",
+                1024 * 512, // 512 KB
+                null,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم رفع وتوثيق المستند بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

@@ -1,0 +1,270 @@
+@page "/clients"
+@using global::App.Application.Clients.Commands.DeleteClient
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Domain.Clients.Enums
+@using global::App.Web.Components.Pages.Clients.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>إدارة الموكلين | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Add Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            إدارة الموكلين 💼
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            سجل الموكلين والشركات، بيانات التواصل، الهويات والسجلات التجارية
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="@(() => OpenClientDialog(null))"
+               Size="Size.Medium">
+        إضافة موكل جديد
+    </MudButton>
+</div>
+
+<!-- Search & Filters -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudCardContent Class="py-3 px-4">
+        <div class="d-flex flex-column flex-md-row align-md-center justify-space-between gap-3">
+            <MudTextField @bind-Value="_searchTerm"
+                          Placeholder="بحث بالاسم، رقم الهوية، السجل التجاري، أو الهاتف..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Small"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Clearable="true"
+                          OnClearButtonClick="OnSearch"
+                          OnKeyUp="HandleSearchKeyUp"
+                          Style="max-width: 420px; width: 100%;" />
+
+            <div class="d-flex flex-wrap gap-2">
+                <MudChip T="string" Color="@(_selectedTypeFilter == null ? Color.Primary : Color.Default)"
+                         Variant="@(_selectedTypeFilter == null ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetTypeFilter(null))">الكل</MudChip>
+                <MudChip T="string" Color="@(_selectedTypeFilter == (int)ClientType.Individual ? Color.Info : Color.Default)"
+                         Variant="@(_selectedTypeFilter == (int)ClientType.Individual ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetTypeFilter((int)ClientType.Individual))">أفراد (طبيعي)</MudChip>
+                <MudChip T="string" Color="@(_selectedTypeFilter == (int)ClientType.Company ? Color.Secondary : Color.Default)"
+                         Variant="@(_selectedTypeFilter == (int)ClientType.Company ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetTypeFilter((int)ClientType.Company))">شركات ومؤسسات</MudChip>
+            </div>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+<!-- Clients Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري جلب سجلات الموكلين...</span>
+            </div>
+        }
+        else if (_clients.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.FolderOff" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد سجلات موكلين</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك البدء بإضافة موكل جديد بالنقر على زر الإضافة أعلاه</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_clients" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>اسم الموكل / المنشأة</MudTh>
+                    <MudTh>نوع الموكل</MudTh>
+                    <MudTh>رقم الهوية / السجل</MudTh>
+                    <MudTh>رقم الهاتف / الجوال</MudTh>
+                    <MudTh>المدينة</MudTh>
+                    <MudTh>الحالة</MudTh>
+                    <MudTh>تاريخ الإضافة</MudTh>
+                    <MudTh Style="text-align: center;">الإجراءات</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="الاسم">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="@(context.ClientType == ClientType.Company ? Color.Secondary : Color.Primary)" Size="Size.Small">
+                                <MudIcon Icon="@(context.ClientType == ClientType.Company ? Icons.Material.Filled.Business : Icons.Material.Filled.Person)" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    @(context.ClientType == ClientType.Company ? context.CompanyName : context.FullName)
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(context.Email))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Email</MudText>
+                                }
+                            </div>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="النوع">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+                                 Color="@(context.ClientType == ClientType.Company ? Color.Secondary : Color.Primary)">
+                            @(context.ClientType == ClientType.Company ? "شركة" : "فرد")
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="الهوية / السجل">
+                        @(context.ClientType == ClientType.Company ? context.CommercialRegister ?? "-" : context.NationalId ?? "-")
+                    </MudTd>
+                    <MudTd DataLabel="الهاتف">
+                        <div class="d-flex flex-column">
+                            <span>@context.Phone</span>
+                            @if (!string.IsNullOrEmpty(context.Mobile))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Mobile</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="المدينة">@(context.City ?? "-")</MudTd>
+                    <MudTd DataLabel="الحالة">
+                        @if (context.IsActive)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text">نشط</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Text">معطل</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="تاريخ الإضافة">
+                        @context.CreatedAt.ToString("yyyy/MM/dd")
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomLeft">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenClientDialog(context))">
+                                تعديل البيانات
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Gavel" Href="@($"cases?clientId={context.Id}")">
+                                قضايا الموكل
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Assignment" Href="@($"power-of-attorney?clientId={context.Id}")">
+                                توكيلات الموكل
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => DeleteClient(context))">
+                                حذف الموكل
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<ClientDto> _clients = [];
+    private bool _isLoading = true;
+    private string? _searchTerm;
+    private int? _selectedTypeFilter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClients();
+    }
+
+    private async Task LoadClients()
+    {
+        _isLoading = true;
+        try
+        {
+            var query = new GetClientsQuery(
+                SearchTerm: string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+                ClientType: _selectedTypeFilter,
+                IsActive: null,
+                Page: 1,
+                PageSize: 50);
+
+            var result = await Mediator.Send(query);
+            if (result.IsSuccess && result.Value != null)
+            {
+                _clients = result.Value.ToList();
+            }
+            else
+            {
+                _clients = [];
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل الموكلين: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SetTypeFilter(int? type)
+    {
+        _selectedTypeFilter = type;
+        await LoadClients();
+    }
+
+    private async Task OnSearch()
+    {
+        await LoadClients();
+    }
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoadClients();
+        }
+    }
+
+    private async Task OpenClientDialog(ClientDto? client)
+    {
+        var parameters = new DialogParameters { ["ClientToEdit"] = client };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var title = client == null ? "إضافة موكل جديد" : "تعديل بيانات الموكل";
+
+        var dialog = await DialogService.ShowAsync<ClientFormDialog>(title, parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadClients();
+        }
+    }
+
+    private async Task DeleteClient(ClientDto client)
+    {
+        var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+        bool? confirm = await DialogService.ShowMessageBoxAsync(
+            "تأكيد الحذف",
+            $"هل أنت متأكد من رغبتك في حذف الموكل '{clientName}'؟",
+            yesText: "نعم، احذف", cancelText: "إلغاء");
+
+        if (confirm == true)
+        {
+            var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+            var command = new DeleteClientCommand(client.Id, userName);
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم حذف الموكل بنجاح", Severity.Success);
+                await LoadClients();
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+    }
+}

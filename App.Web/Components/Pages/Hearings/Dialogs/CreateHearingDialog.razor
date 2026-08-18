@@ -1,0 +1,174 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Hearings.Commands.CreateHearing
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Case Selection -->
+                <MudItem xs="12">
+                    <MudSelect T="Guid"
+                               Label="القضية المرتبطة *"
+                               @bind-Value="_caseId"
+                               Required="true"
+                               RequiredError="يرجى اختيار القضية"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@c.Id">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Hearing Date & Time -->
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_hearingDate"
+                                   Label="تاريخ الجلسة *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTimePicker @bind-Time="_hearingTime"
+                                   Label="وقت الجلسة"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Hearing Type -->
+                <MudItem xs="12">
+                    <MudSelect T="string"
+                               Label="نوع الجلسة *"
+                               @bind-Value="_hearingType"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@("جلسة أولى / افتتاحية")">جلسة أولى / افتتاحية</MudSelectItem>
+                        <MudSelectItem Value="@("تقديم مذكرات ومستندات")">تقديم مذكرات ومستندات</MudSelectItem>
+                        <MudSelectItem Value="@("سماع أقوال وشهود")">سماع أقوال وشهود</MudSelectItem>
+                        <MudSelectItem Value="@("ندب خبير / تقرير خبرة")">ندب خبير / تقرير خبرة</MudSelectItem>
+                        <MudSelectItem Value="@("مرافعة ختامية")">مرافعة ختامية</MudSelectItem>
+                        <MudSelectItem Value="@("نطق بالحكم")">نطق بالحكم</MudSelectItem>
+                        <MudSelectItem Value="@("جلسة صلح / وساطة")">جلسة صلح / وساطة</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Notes -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="ملاحظات وتوجيهات الحضور"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>جدولة الجلسة</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid? PreselectedCaseId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private Guid _caseId;
+    private DateTime? _hearingDate = DateTime.Today.AddDays(1);
+    private TimeSpan? _hearingTime = new TimeSpan(10, 0, 0);
+    private string _hearingType = "جلسة أولى / افتتاحية";
+    private string? _notes;
+
+    private List<CaseDto> _cases = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (PreselectedCaseId.HasValue)
+            _caseId = PreselectedCaseId.Value;
+
+        try
+        {
+            var casesResult = await Mediator.Send(new GetCasesQuery(PageSize: 100));
+            if (casesResult.IsSuccess && casesResult.Value != null)
+            {
+                _cases = casesResult.Value.ToList();
+                if (_caseId == Guid.Empty && _cases.Count > 0)
+                    _caseId = _cases[0].Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل القضايا: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _caseId == Guid.Empty)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreateHearingCommand(
+                _caseId,
+                _hearingDate ?? DateTime.Today,
+                _hearingTime,
+                _hearingType,
+                _notes,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تمت جدولة جلسة المحكمة بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

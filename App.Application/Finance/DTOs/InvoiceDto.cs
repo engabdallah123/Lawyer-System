@@ -1,0 +1,27 @@
+using App.Domain.Finance.Enums;
+
+namespace App.Application.Finance.DTOs;
+
+public record InvoiceDto(
+    Guid Id,
+    string InvoiceNumber,
+    Guid ClientId,
+    string ClientName,
+    Guid? CaseId,
+    string? CaseInternalNumber,
+    string? CaseTitle,
+    Guid? FeeAgreementId,
+    DateTime IssueDate,
+    DateTime? DueDate,
+    decimal SubTotal,
+    decimal Discount,
+    decimal TaxAmount,
+    decimal TotalAmount,
+    decimal PaidAmount,
+    decimal RemainingAmount,
+    InvoiceStatus Status,
+    string StatusName,
+    string? Notes,
+    string? QRCodePath,
+    DateTime CreatedAt,
+    string CreatedBy);

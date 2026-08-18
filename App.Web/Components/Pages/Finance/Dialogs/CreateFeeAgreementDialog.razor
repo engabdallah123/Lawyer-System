@@ -1,0 +1,208 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Application.Finance.Commands.CreateFeeAgreement
+@using global::App.Domain.Clients.Enums
+@using global::App.Domain.Finance.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Client Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid"
+                               Label="الموكل (الطرف الثاني) *"
+                               @bind-Value="_clientId"
+                               Required="true"
+                               RequiredError="يرجى اختيار الموكل"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var client in _clients)
+                        {
+                            var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+                            <MudSelectItem Value="@client.Id">@clientName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Linked Case Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="القضية المرتبطة (اختياري)"
+                               @bind-Value="_caseId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@((Guid?)c.Id)">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Agreement Type & Total Amount -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="AgreementType"
+                               Label="نوع الاتفاق / العقد *"
+                               @bind-Value="_agreementType"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@AgreementType.Fixed">مبلغ مقطوع ثابت (Fixed Amount)</MudSelectItem>
+                        <MudSelectItem Value="@AgreementType.Percentage">نسبة مئوية من التحصيل (Percentage)</MudSelectItem>
+                        <MudSelectItem Value="@AgreementType.Hourly">بالساعة (Hourly Rate)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudNumericField @bind-Value="_totalAmount"
+                                     Label="إجمالي قيمة العقد (ر.س) *"
+                                     Required="true"
+                                     Min="1"
+                                     Format="N2"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Start Date & End Date -->
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_startDate"
+                                   Label="تاريخ بدء العقد *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_endDate"
+                                   Label="تاريخ نهاية العقد (اختياري)"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Description -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="شروط الدفع والتزامات العقد"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>إبرام عقد الأتعاب</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private Guid _clientId;
+    private Guid? _caseId;
+    private AgreementType _agreementType = AgreementType.Fixed;
+    private decimal _totalAmount = 10000;
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today.AddYears(1);
+    private string? _description;
+
+    private List<ClientDto> _clients = [];
+    private List<CaseDto> _cases = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 100));
+            var casesTask = Mediator.Send(new GetCasesQuery(PageSize: 100));
+
+            await Task.WhenAll(clientsTask, casesTask);
+
+            if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
+            {
+                _clients = clientsTask.Result.Value.ToList();
+                if (_clients.Count > 0)
+                    _clientId = _clients[0].Id;
+            }
+
+            if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
+            {
+                _cases = casesTask.Result.Value.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل البيانات: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _clientId == Guid.Empty)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreateFeeAgreementCommand(
+                _clientId,
+                _caseId,
+                _agreementType,
+                _totalAmount,
+                _description,
+                _startDate ?? DateTime.Today,
+                _endDate,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تسجيل عقد الأتعاب بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

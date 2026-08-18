@@ -1,0 +1,150 @@
+@using global::App.Application.Cases.Commands.AssignLawyer
+@using global::App.Application.Cases.DTOs
+@using global::App.Infrastructure.Identity.DTOs
+@using global::App.Infrastructure.Identity.Services
+@inject IMediator Mediator
+@inject IIdentityService IdentityService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                إسناد القضية: <b>@CaseItem.Title</b> (رقم: @CaseItem.InternalNumber)
+            </MudText>
+
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudSelect T="string"
+                               Label="المحامي المكلف *"
+                               @bind-Value="_selectedUserId"
+                               Required="true"
+                               RequiredError="يرجى اختيار المحامي"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var user in _lawyers)
+                        {
+                            <MudSelectItem Value="@user.Id">@user.FullName (@user.Email)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="string"
+                               Label="الدور في القضية *"
+                               @bind-Value="_roleInCase"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@("محامي أساسي")">محامي أساسي (Primary Lawyer)</MudSelectItem>
+                        <MudSelectItem Value="@("محامي مساعد")">محامي مساعد (Associate Lawyer)</MudSelectItem>
+                        <MudSelectItem Value="@("مستشار قانوني")">مستشار قانوني (Legal Consultant)</MudSelectItem>
+                        <MudSelectItem Value="@("متدرب")">محامي متدرب (Trainee)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="ملاحظات وتوجيهات الإسناد"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الإسناد...</span>
+            }
+            else
+            {
+                <span>تأكيد الإسناد</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public CaseDto CaseItem { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _selectedUserId = string.Empty;
+    private string _roleInCase = "محامي أساسي";
+    private string? _notes;
+
+    private List<UserDto> _lawyers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var users = await IdentityService.GetUsersAsync();
+            _lawyers = users.Where(u => u.IsActive).ToList();
+            if (_lawyers.Count > 0)
+                _selectedUserId = _lawyers[0].Id;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل قائمة المحامين: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || string.IsNullOrEmpty(_selectedUserId))
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new AssignLawyerCommand(
+                CaseItem.Id,
+                _selectedUserId,
+                _roleInCase,
+                DateTime.UtcNow,
+                _notes,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم إسناد المحامي إلى ملف القضية بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

@@ -1,0 +1,215 @@
+@page "/consultations"
+@using global::App.Application.Consultations.DTOs
+@using global::App.Application.Consultations.Queries.GetConsultations
+@using global::App.Domain.Consultations.Enums
+@using global::App.Web.Components.Pages.Consultations.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>الاستشارات القانونية | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Add Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            الاستشارات القانونية 📜
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            سجل الاستشارات، الآراء القانونية، المواعيد والأتعاب المقدرة
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Tertiary"
+               StartIcon="@Icons.Material.Filled.AddComment"
+               OnClick="@(() => OpenCreateConsultationDialog())"
+               Size="Size.Medium">
+        تسجيل استشارة جديدة
+    </MudButton>
+</div>
+
+<!-- Search & Status Filters -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudCardContent Class="py-3 px-4">
+        <div class="d-flex flex-column flex-md-row align-md-center justify-space-between gap-3">
+            <MudTextField @bind-Value="_searchTerm"
+                          Placeholder="بحث باسم الموكل أو موضوع الاستشارة..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Small"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Clearable="true"
+                          OnClearButtonClick="OnSearch"
+                          OnKeyUp="HandleSearchKeyUp"
+                          Style="max-width: 420px; width: 100%;" />
+
+            <div class="d-flex flex-wrap gap-2">
+                <MudChip T="string" Color="@(_statusFilter == null ? Color.Primary : Color.Default)"
+                         Variant="@(_statusFilter == null ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetStatusFilter(null))">الكل</MudChip>
+                <MudChip T="string" Color="@(_statusFilter == (int)ConsultationStatus.Scheduled ? Color.Warning : Color.Default)"
+                         Variant="@(_statusFilter == (int)ConsultationStatus.Scheduled ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetStatusFilter((int)ConsultationStatus.Scheduled))">مجدولة</MudChip>
+                <MudChip T="string" Color="@(_statusFilter == (int)ConsultationStatus.Completed ? Color.Success : Color.Default)"
+                         Variant="@(_statusFilter == (int)ConsultationStatus.Completed ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetStatusFilter((int)ConsultationStatus.Completed))">مكتملة</MudChip>
+                <MudChip T="string" Color="@(_statusFilter == (int)ConsultationStatus.Cancelled ? Color.Error : Color.Default)"
+                         Variant="@(_statusFilter == (int)ConsultationStatus.Cancelled ? Variant.Filled : Variant.Outlined)"
+                         OnClick="@(() => SetStatusFilter((int)ConsultationStatus.Cancelled))">ملغاة</MudChip>
+            </div>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+<!-- Consultations Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل سجل الاستشارات...</span>
+            </div>
+        }
+        else if (_consultations.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Forum" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد استشارات قانونية مسجلة</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك حجز وتسجيل استشارة جديدة عبر الزر بالأعلى</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_consultations" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>اسم الموكل</MudTh>
+                    <MudTh>موضوع الاستشارة</MudTh>
+                    <MudTh>تاريخ الموعد</MudTh>
+                    <MudTh>الأتعاب المقدرة</MudTh>
+                    <MudTh>حالة الاستشارة</MudTh>
+                    <MudTh>الرأي القانوني / ملاحظات</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="الموكل">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="Color.Tertiary" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" />
+                            </MudAvatar>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold">@context.ClientName</span>
+                                @if (!string.IsNullOrEmpty(context.ClientPhone))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ClientPhone</MudText>
+                                }
+                            </div>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="الموضوع">
+                        <span class="fw-bold text-primary">@context.Subject</span>
+                    </MudTd>
+                    <MudTd DataLabel="الموعد">
+                        @context.ConsultationDate.ToString("yyyy/MM/dd")
+                    </MudTd>
+                    <MudTd DataLabel="الأتعاب">
+                        @(context.Fee.HasValue ? context.Fee.Value.ToString("N2") + " ر.س" : "غير محدد")
+                    </MudTd>
+                    <MudTd DataLabel="الحالة">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetStatusColor(context.Status)">
+                            @context.StatusName
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="الرأي القانوني">
+                        <span class="text-truncate" style="max-width: 250px; display: inline-block;">
+                            @(context.Notes ?? context.Description ?? "-")
+                        </span>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<ConsultationDto> _consultations = [];
+    private bool _isLoading = true;
+    private string? _searchTerm;
+    private int? _statusFilter;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConsultations();
+    }
+
+    private async Task LoadConsultations()
+    {
+        _isLoading = true;
+        try
+        {
+            var query = new GetConsultationsQuery(
+                ClientId: null,
+                Status: _statusFilter,
+                Page: 1,
+                PageSize: 50);
+
+            var result = await Mediator.Send(query);
+            if (result.IsSuccess && result.Value != null)
+            {
+                var list = result.Value.ToList();
+                if (!string.IsNullOrWhiteSpace(_searchTerm))
+                {
+                    list = list.Where(c => c.ClientName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                           c.Subject.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+                _consultations = list;
+            }
+            else
+            {
+                _consultations = [];
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل الاستشارات: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetStatusColor(ConsultationStatus status) => status switch
+    {
+        ConsultationStatus.Scheduled => Color.Warning,
+        ConsultationStatus.Completed => Color.Success,
+        ConsultationStatus.Cancelled => Color.Error,
+        _ => Color.Default
+    };
+
+    private async Task SetStatusFilter(int? status)
+    {
+        _statusFilter = status;
+        await LoadConsultations();
+    }
+
+    private async Task OnSearch() => await LoadConsultations();
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadConsultations();
+    }
+
+    private async Task OpenCreateConsultationDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateConsultationDialog>("تسجيل استشارة قانونية جديدة", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadConsultations();
+    }
+}

@@ -1,0 +1,347 @@
+@page "/"
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Application.Dashboard.Queries.GetOwnerDashboard
+@using global::App.Application.Hearings.DTOs
+@using global::App.Application.Hearings.Queries.GetHearings
+@using global::App.Application.Hearings.Queries.GetTodayHearings
+@using global::App.Application.Tasks.Commands.CompleteLegalTask
+@using global::App.Application.Tasks.DTOs
+@using global::App.Application.Tasks.Queries.GetOverdueTasks
+@using global::App.Web.Components.Pages.Cases.Dialogs
+@using global::App.Web.Components.Pages.Clients.Dialogs
+@using global::App.Web.Components.Pages.Finance.Dialogs
+@using global::App.Web.Components.Pages.Hearings.Dialogs
+@using global::App.Web.Components.Pages.Tasks.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>الرئيسية | لوحة القيادة والمتابعة</PageTitle>
+
+<!-- Welcome Header & Quick Action Buttons -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            مرحباً بك، @(AuthStateProvider.CurrentUser?.FullName ?? "أستاذ القانون") ⚖️
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            لوحة القيادة والمتابعة التشغيلية لنظام إدارة مكاتب المحاماة — @DateTime.Now.ToString("dddd، dd MMMM yyyy", new System.Globalization.CultureInfo("ar-EG"))
+        </MudText>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="d-flex flex-wrap gap-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenNewClientDialog" Size="Size.Small">
+            موكل جديد
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddCircle" OnClick="OpenNewCaseDialog" Size="Size.Small">
+            قضية جديدة
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CalendarMonth" OnClick="OpenNewHearingDialog" Size="Size.Small">
+            جدولة جلسة
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Receipt" OnClick="OpenNewInvoiceDialog" Size="Size.Small">
+            إصدار فاتورة
+        </MudButton>
+    </div>
+</div>
+
+<!-- KPI Cards Grid -->
+<MudGrid Class="mb-6" Spacing="3">
+    <!-- Active Cases -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <div class="d-flex justify-space-between align-center">
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">القضايا النشطة</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-primary">@_activeCasesCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Success">
+                        <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Small" /> قيد المتابعة القضائية
+                    </MudText>
+                </div>
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Medium" />
+                </MudAvatar>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Today Hearings -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <div class="d-flex justify-space-between align-center">
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">جلسات اليوم</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-warning">@_todayHearings.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="@(_todayHearings.Count > 0 ? Color.Error : Color.Secondary)">
+                        <MudIcon Icon="@Icons.Material.Filled.NotificationImportant" Size="Size.Small" /> @(_todayHearings.Count > 0 ? "تتطلب الحضور" : "لا توجد جلسات اليوم")
+                    </MudText>
+                </div>
+                <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Medium" />
+                </MudAvatar>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Clients Count -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <div class="d-flex justify-space-between align-center">
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">الموكلين المسجلين</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-info">@_clientsCount</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" /> ملفات الموكلين النشطة
+                    </MudText>
+                </div>
+                <MudAvatar Color="Color.Info" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" Size="Size.Medium" />
+                </MudAvatar>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Pending & Overdue Tasks -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <div class="d-flex justify-space-between align-center">
+                <div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">المهام العاجلة والمتأخرة</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-error">@_overdueTasks.Count</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Error">
+                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" /> تتطلب المتابعة والإنجاز
+                    </MudText>
+                </div>
+                <MudAvatar Color="Color.Error" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
+                    <MudIcon Icon="@Icons.Material.Filled.ChecklistRtl" Size="Size.Medium" />
+                </MudAvatar>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Content Sections: Hearings & Urgent Tasks -->
+<MudGrid Spacing="3">
+    <!-- Upcoming Hearings Section -->
+    <MudItem xs="12" md="8">
+        <MudCard Elevation="0" Class="glass-card border h-100">
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudAvatar Color="Color.Primary" Size="Size.Small">
+                        <MudIcon Icon="@Icons.Material.Filled.EventNote" />
+                    </MudAvatar>
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">أحدث جلسات المحاكم المجدولة</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">المواعيد القادمة بالمحاكم والدوائر القضائية</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="hearings" EndIcon="@Icons.Material.Filled.ArrowBack">
+                        عرض كافة الجلسات
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent Class="pa-0">
+                @if (_hearings.Count == 0)
+                {
+                    <div class="pa-6 text-center">
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">لا توجد جلسات مجدولة حالياً</MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudTable Items="@_hearings.Take(5)" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>رقم القضية</MudTh>
+                            <MudTh>موضوع القضية</MudTh>
+                            <MudTh>المحكمة / الدائرة</MudTh>
+                            <MudTh>الموعد</MudTh>
+                            <MudTh>نوع الجلسة</MudTh>
+                            <MudTh Style="text-align: center;">الإجراء</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="رقم القضية"><span class="fw-bold text-primary">@context.CaseInternalNumber</span></MudTd>
+                            <MudTd DataLabel="الموضوع">@context.CaseTitle</MudTd>
+                            <MudTd DataLabel="المحكمة">@(context.CourtName ?? "-")</MudTd>
+                            <MudTd DataLabel="الموعد">
+                                <span class="fw-bold">@context.HearingDate.ToString("MM/dd")</span>
+                                @if (context.HearingTime.HasValue)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Info">@context.HearingTime.Value.ToString(@"hh\:mm")</MudText>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="النوع"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.HearingType</MudChip></MudTd>
+                            <MudTd Style="text-align: center;">
+                                <MudTooltip Text="تسجيل قرار الجلسة">
+                                    <MudIconButton Icon="@Icons.Material.Filled.EditNote" Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenRecordResultDialog(context))" />
+                                </MudTooltip>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <!-- Urgent Tasks Section -->
+    <MudItem xs="12" md="4">
+        <MudCard Elevation="0" Class="glass-card border h-100">
+            <MudCardHeader>
+                <CardHeaderAvatar>
+                    <MudAvatar Color="Color.Warning" Size="Size.Small">
+                        <MudIcon Icon="@Icons.Material.Filled.AssignmentLate" />
+                    </MudAvatar>
+                </CardHeaderAvatar>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">المهام والمتابعات</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">المطلوب إنجازه</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudTooltip Text="مهمة جديدة">
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Primary" OnClick="OpenNewTaskDialog" />
+                    </MudTooltip>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent Class="pa-2">
+                @if (_overdueTasks.Count == 0)
+                {
+                    <div class="pa-6 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" Size="Size.Large" Class="mb-1" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">تم إنجاز كافة المهام العاجلة بنجاح!</MudText>
+                    </div>
+                }
+                else
+                {
+                    <MudList T="string" Dense="true">
+                        @foreach (var task in _overdueTasks.Take(4))
+                        {
+                            <MudListItem Icon="@Icons.Material.Filled.RadioButtonUnchecked" IconColor="Color.Error">
+                                <div class="d-flex justify-space-between align-center">
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="fw-bold">@task.Title</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                            الاستحقاق: @(task.DueDate?.ToString("yyyy/MM/dd") ?? "غير محدد")
+                                        </MudText>
+                                    </div>
+                                    <MudTooltip Text="إكمال المهمة">
+                                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Size="Size.Small" OnClick="@(() => MarkTaskComplete(task))" />
+                                    </MudTooltip>
+                                </div>
+                            </MudListItem>
+                            <MudDivider Class="my-1" />
+                        }
+                    </MudList>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private int _activeCasesCount = 0;
+    private int _clientsCount = 0;
+    private List<HearingDto> _todayHearings = [];
+    private List<HearingDto> _hearings = [];
+    private List<LegalTaskDto> _overdueTasks = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            var casesTask = Mediator.Send(new GetCasesQuery(PageSize: 100));
+            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 100));
+            var todayHearingsTask = Mediator.Send(new GetTodayHearingsQuery());
+            var allHearingsTask = Mediator.Send(new GetHearingsQuery(PageSize: 10));
+            var overdueTasksTask = Mediator.Send(new GetOverdueTasksQuery());
+
+            await Task.WhenAll(casesTask, clientsTask, todayHearingsTask, allHearingsTask, overdueTasksTask);
+
+            if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
+                _activeCasesCount = casesTask.Result.Value.Count(c => c.CloseDate == null);
+
+            if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
+                _clientsCount = clientsTask.Result.Value.Count();
+
+            if (todayHearingsTask.Result.IsSuccess && todayHearingsTask.Result.Value != null)
+                _todayHearings = todayHearingsTask.Result.Value.ToList();
+
+            if (allHearingsTask.Result.IsSuccess && allHearingsTask.Result.Value != null)
+                _hearings = allHearingsTask.Result.Value.ToList();
+
+            if (overdueTasksTask.Result.IsSuccess && overdueTasksTask.Result.Value != null)
+                _overdueTasks = overdueTasksTask.Result.Value.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل بيانات لوحة التحكم: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenNewClientDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ClientFormDialog>("إضافة موكل جديد", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadDashboardData();
+    }
+
+    private async Task OpenNewCaseDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateCaseDialog>("فتح ملف قضية جديدة", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadDashboardData();
+    }
+
+    private async Task OpenNewHearingDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateHearingDialog>("جدولة موعد جلسة بالمحكمة", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadDashboardData();
+    }
+
+    private async Task OpenNewInvoiceDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateInvoiceDialog>("إصدار فاتورة أتعاب", options);
+        await dialog.Result;
+    }
+
+    private async Task OpenNewTaskDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateTaskDialog>("تكليف مهمة عمل جديدة", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadDashboardData();
+    }
+
+    private async Task OpenRecordResultDialog(HearingDto hearing)
+    {
+        var parameters = new DialogParameters { ["HearingItem"] = hearing };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<RecordHearingResultDialog>("توثيق وتسجيل قرار الجلسة", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadDashboardData();
+    }
+
+    private async Task MarkTaskComplete(LegalTaskDto task)
+    {
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+        var result = await Mediator.Send(new CompleteLegalTaskCommand(task.Id, userName));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("تم إنجاز المهمة بنجاح", Severity.Success);
+            await LoadDashboardData();
+        }
+    }
+}

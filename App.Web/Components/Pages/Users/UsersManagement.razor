@@ -1,0 +1,295 @@
+@page "/users"
+@page "/settings/users"
+@using global::App.Web.Components.Pages.Users.Dialogs
+@inject IIdentityService IdentityService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>إدارة المستخدمين والصلاحيات | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Add Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            إدارة المستخدمين والصلاحيات 👥
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            إدارة حسابات فريق العمل وتعيين الأدوار والصلاحيات الدقيقة لكل مستخدم
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenAddUserDialog"
+               Size="Size.Medium">
+        إضافة مستخدم جديد
+    </MudButton>
+</div>
+
+<!-- Stats Summary Grid -->
+<MudGrid Class="mb-6">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">إجمالي المستخدمين</MudText>
+            <MudText Typo="Typo.h4" Class="fw-bold my-1 text-primary">@_users.Count</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Success">حسابات مسجلة بالنظام</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">المدراء</MudText>
+            <MudText Typo="Typo.h4" Class="fw-bold my-1 text-primary">
+                @_users.Count(u => u.Role == AppRoles.Administrator)
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">كامل الصلاحيات</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">المحامون والمستشارون</MudText>
+            <MudText Typo="Typo.h4" Class="fw-bold my-1 text-warning">
+                @_users.Count(u => u.Role == AppRoles.Lawyer)
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">متابعة القضايا والجلسات</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">الموظفون والسكرتارية</MudText>
+            <MudText Typo="Typo.h4" Class="fw-bold my-1 text-info">
+                @_users.Count(u => u.Role == AppRoles.Staff)
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">الأعمال الإدارية المساندة</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<!-- Users Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.subtitle1" Class="fw-bold">قائمة المستخدمين</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudTextField @bind-Value="_searchString"
+                          Placeholder="بحث بالاسم أو البريد أو المسمى..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Small"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="me-2"
+                          Style="max-width: 320px;" />
+        </CardHeaderActions>
+    </MudCardHeader>
+
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل قائمة المستخدمين...</span>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@FilteredUsers" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>الاسم الكامل</MudTh>
+                    <MudTh>البريد الإلكتروني</MudTh>
+                    <MudTh>رقم الهاتف</MudTh>
+                    <MudTh>المسمى الوظيفي</MudTh>
+                    <MudTh>الدور الأساسي</MudTh>
+                    <MudTh>الصلاحيات</MudTh>
+                    <MudTh>الحالة</MudTh>
+                    <MudTh>تاريخ التسجيل</MudTh>
+                    <MudTh Style="text-align: center;">الإجراءات</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="الاسم">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="@GetRoleColor(context.Role)" Size="Size.Small">
+                                @(string.IsNullOrEmpty(context.FullName) ? "U" : context.FullName.Substring(0, 1))
+                            </MudAvatar>
+                            <span class="fw-bold">@context.FullName</span>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="البريد">@context.Email</MudTd>
+                    <MudTd DataLabel="الهاتف">@(context.PhoneNumber ?? "-")</MudTd>
+                    <MudTd DataLabel="المسمى">@(context.JobTitle ?? "-")</MudTd>
+                    <MudTd DataLabel="الدور">
+                        <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small" Variant="Variant.Filled">
+                            @AppRoles.GetArabicName(context.Role)
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="الصلاحيات">
+                        <MudTooltip Text="@string.Join("، ", context.Permissions)">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Default">
+                                @context.Permissions.Count صلاحية
+                            </MudChip>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd DataLabel="الحالة">
+                        @if (context.IsActive)
+                        {
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Text">نشط</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Color="Color.Error" Size="Size.Small" Variant="Variant.Text">معطل</MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="تاريخ التسجيل">
+                        @context.CreatedAt.ToString("yyyy/MM/dd")
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomLeft">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditUserDialog(context))">
+                                تعديل البيانات والصلاحيات
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => OpenResetPasswordDialog(context))">
+                                إعادة تعيين كلمة المرور
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@(context.IsActive ? Icons.Material.Filled.Block : Icons.Material.Filled.CheckCircle)"
+                                         OnClick="@(() => ToggleUserStatus(context))">
+                                @(context.IsActive ? "تعطيل الحساب" : "تفعيل الحساب")
+                            </MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => DeleteUser(context))">
+                                حذف الحساب
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <div class="pa-8 text-center">
+                        <MudText Typo="Typo.body1" Color="Color.Secondary">لا توجد سجلات مطابقة للبحث</MudText>
+                    </div>
+                </NoRecordsContent>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<UserDto> _users = [];
+    private bool _isLoading = true;
+    private string _searchString = string.Empty;
+
+    private IEnumerable<UserDto> FilteredUsers =>
+        string.IsNullOrWhiteSpace(_searchString)
+            ? _users
+            : _users.Where(u =>
+                u.FullName.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Contains(_searchString, StringComparison.OrdinalIgnoreCase) ||
+                (u.JobTitle != null && u.JobTitle.Contains(_searchString, StringComparison.OrdinalIgnoreCase)) ||
+                u.Role.Contains(_searchString, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        _isLoading = true;
+        try
+        {
+            _users = await IdentityService.GetUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل المستخدمين: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetRoleColor(string role) => role switch
+    {
+        AppRoles.Administrator => Color.Primary,
+        AppRoles.Lawyer => Color.Warning,
+        AppRoles.Staff => Color.Info,
+        _ => Color.Default
+    };
+
+    private async Task OpenAddUserDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialog = await DialogService.ShowAsync<AddUserDialog>("إضافة حساب مستخدم جديد وتعيين الصلاحيات", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadUsers();
+        }
+    }
+
+    private async Task OpenEditUserDialog(UserDto user)
+    {
+        var parameters = new DialogParameters { ["User"] = user };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var dialog = await DialogService.ShowAsync<EditUserDialog>($"تعديل حساب: {user.FullName}", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadUsers();
+        }
+    }
+
+    private async Task OpenResetPasswordDialog(UserDto user)
+    {
+        var parameters = new DialogParameters { ["User"] = user };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Small };
+        var dialog = await DialogService.ShowAsync<ResetPasswordDialog>("إعادة تعيين كلمة المرور", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            Snackbar.Add("تم تغيير كلمة المرور بنجاح", Severity.Success);
+        }
+    }
+
+    private async Task ToggleUserStatus(UserDto user)
+    {
+        var result = await IdentityService.ToggleUserStatusAsync(user.Id);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add(user.IsActive ? "تم تعطيل الحساب" : "تم تفعيل الحساب", Severity.Info);
+            await LoadUsers();
+        }
+        else
+        {
+            Snackbar.Add(result.Error.Name, Severity.Error);
+        }
+    }
+
+    private async Task DeleteUser(UserDto user)
+    {
+        bool? confirm = await DialogService.ShowMessageBoxAsync(
+            "تأكيد الحذف",
+            $"هل أنت متأكد من رغبتك في حذف حساب '{user.FullName}' نهائياً؟",
+            yesText: "نعم، احذف", cancelText: "إلغاء");
+
+        if (confirm == true)
+        {
+            var result = await IdentityService.DeleteUserAsync(user.Id);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم حذف حساب المستخدم بنجاح", Severity.Success);
+                await LoadUsers();
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+    }
+}

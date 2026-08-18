@@ -1,0 +1,245 @@
+@page "/power-of-attorney"
+@using global::App.Application.PowerOfAttorney.DTOs
+@using global::App.Application.PowerOfAttorney.Queries.GetExpiringPowerOfAttorneys
+@using global::App.Application.PowerOfAttorney.Queries.GetPowerOfAttorneys
+@using global::App.Web.Components.Pages.PowerOfAttorney.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>التوكيلات الرسمية | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Add Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            التوكيلات والتفويضات 🔏
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            سجل الوكالات الشرعية، أرقام التوثيق، صلاحيات المرافعة، وتواريخ الانتهاء
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Secondary"
+               StartIcon="@Icons.Material.Filled.PostAdd"
+               OnClick="@(() => OpenCreatePowerOfAttorneyDialog())"
+               Size="Size.Medium">
+        إضافة توكيل جديد
+    </MudButton>
+</div>
+
+<!-- Expiring Soon Alert Banner -->
+@if (_expiringCount > 0)
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-6 rounded-lg" Elevation="1">
+        <div class="d-flex align-center justify-space-between">
+            <span>تنبيه: يوجد عدد <b>@_expiringCount</b> توكيلات قاربت على الانتهاء خلال الـ 30 يوماً القادمة!</span>
+        </div>
+    </MudAlert>
+}
+
+<!-- Search Box -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudCardContent Class="py-3 px-4">
+        <MudTextField @bind-Value="_searchTerm"
+                      Placeholder="بحث باسم الموكل، رقم التوكيل، أو جهة التوثيق..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Small"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Clearable="true"
+                      OnClearButtonClick="OnSearch"
+                      OnKeyUp="HandleSearchKeyUp"
+                      Style="max-width: 420px; width: 100%;" />
+    </MudCardContent>
+</MudCard>
+
+<!-- Power of Attorney Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل سجلات التوكيلات...</span>
+            </div>
+        }
+        else if (_powers.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentLate" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد توكيلات مسجلة</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك تسجيل وكالة جديدة عبر زر الإضافة أعلاه</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_powers" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>رقم التوكيل</MudTh>
+                    <MudTh>اسم الموكل</MudTh>
+                    <MudTh>جهة الإصدار</MudTh>
+                    <MudTh>تاريخ الإصدار</MudTh>
+                    <MudTh>تاريخ الانتهاء</MudTh>
+                    <MudTh>القضية المرتبطة</MudTh>
+                    <MudTh>الحالة</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="رقم التوكيل">
+                        <span class="fw-bold text-primary">@context.PowerNumber</span>
+                    </MudTd>
+                    <MudTd DataLabel="الموكل">
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold">@context.ClientName</span>
+                            @if (!string.IsNullOrEmpty(context.ClientPhone))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.ClientPhone</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="جهة الإصدار">
+                        @(context.NotaryName ?? "كتابة العدل")
+                    </MudTd>
+                    <MudTd DataLabel="تاريخ الإصدار">
+                        @context.IssueDate.ToString("yyyy/MM/dd")
+                    </MudTd>
+                    <MudTd DataLabel="تاريخ الانتهاء">
+                        @if (context.ExpiryDate.HasValue)
+                        {
+                            var isExpired = context.ExpiryDate.Value < DateTime.Today;
+                            var isExpiringSoon = !isExpired && context.ExpiryDate.Value <= DateTime.Today.AddDays(30);
+
+                            <span class="@(isExpired ? "text-danger fw-bold" : isExpiringSoon ? "text-warning fw-bold" : "")">
+                                @context.ExpiryDate.Value.ToString("yyyy/MM/dd")
+                            </span>
+                        }
+                        else
+                        {
+                            <span>غير محدد</span>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="القضية">
+                        @(string.IsNullOrEmpty(context.CaseInternalNumber) ? "عام للموكل" : $"{context.CaseInternalNumber} - {context.CaseTitle}")
+                    </MudTd>
+                    <MudTd DataLabel="الحالة">
+                        @if (context.ExpiryDate.HasValue && context.ExpiryDate.Value < DateTime.Today)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Error">منتهي الصلاحية</MudChip>
+                        }
+                        else if (context.IsActive)
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Success">ساري المفعول</MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Default">معطل</MudChip>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string? ClientId { get; set; }
+
+    private List<PowerOfAttorneyDto> _powers = [];
+    private bool _isLoading = true;
+    private string? _searchTerm;
+    private int _expiringCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExpiringAlerts();
+        await LoadPowers();
+    }
+
+    private async Task LoadExpiringAlerts()
+    {
+        try
+        {
+            var expiringResult = await Mediator.Send(new GetExpiringPowerOfAttorneysQuery(WithinDays: 30));
+            if (expiringResult.IsSuccess && expiringResult.Value != null)
+            {
+                _expiringCount = expiringResult.Value.Count();
+            }
+        }
+        catch
+        {
+            // Ignore alert fail
+        }
+    }
+
+    private async Task LoadPowers()
+    {
+        _isLoading = true;
+        try
+        {
+            Guid? clientIdParam = null;
+            if (!string.IsNullOrEmpty(ClientId) && Guid.TryParse(ClientId, out var parsedId))
+                clientIdParam = parsedId;
+
+            var query = new GetPowerOfAttorneysQuery(
+                ClientId: clientIdParam,
+                IsActive: null,
+                Page: 1,
+                PageSize: 50);
+
+            var result = await Mediator.Send(query);
+            if (result.IsSuccess && result.Value != null)
+            {
+                var list = result.Value.ToList();
+                if (!string.IsNullOrWhiteSpace(_searchTerm))
+                {
+                    list = list.Where(p => p.ClientName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                           p.PowerNumber.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                                           (p.NotaryName != null && p.NotaryName.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase))).ToList();
+                }
+                _powers = list;
+            }
+            else
+            {
+                _powers = [];
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل التوكيلات: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnSearch() => await LoadPowers();
+
+    private async Task HandleSearchKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await LoadPowers();
+    }
+
+    private async Task OpenCreatePowerOfAttorneyDialog()
+    {
+        Guid? defaultClientId = null;
+        if (!string.IsNullOrEmpty(ClientId) && Guid.TryParse(ClientId, out var parsedGuid))
+            defaultClientId = parsedGuid;
+
+        var parameters = new DialogParameters { ["DefaultClientId"] = defaultClientId };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePowerOfAttorneyDialog>("تسجيل وكالة شرعية جديدة", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            await LoadExpiringAlerts();
+            await LoadPowers();
+        }
+    }
+}

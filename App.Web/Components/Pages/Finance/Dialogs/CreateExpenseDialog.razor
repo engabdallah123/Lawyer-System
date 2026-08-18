@@ -1,0 +1,179 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Finance.Commands.CreateExpense
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Linked Case Selection -->
+                <MudItem xs="12">
+                    <MudSelect T="Guid?"
+                               Label="ربط بقضية محددة (اختياري - أو مصروف عام)"
+                               @bind-Value="_caseId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@((Guid?)c.Id)">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Expense Type -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string"
+                               Label="نوع / تصنيف المصروف *"
+                               @bind-Value="_expenseType"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@("رسوم قضائية وتكاليف محاكم")">رسوم قضائية وتكاليف محاكم</MudSelectItem>
+                        <MudSelectItem Value="@("أتعاب خبراء ومحاسبين قانونيين")">أتعاب خبراء ومحاسبين قانونيين</MudSelectItem>
+                        <MudSelectItem Value="@("رسوم توثيق وتراخيص")">رسوم توثيق وتراخيص</MudSelectItem>
+                        <MudSelectItem Value="@("انتقالات ومصروفات تنقل")">انتقالات ومصروفات تنقل</MudSelectItem>
+                        <MudSelectItem Value="@("طباعة وترجمة قانونية")">طباعة وترجمة قانونية</MudSelectItem>
+                        <MudSelectItem Value="@("مصروفات إدارية وتشغيلية")">مصروفات إدارية وتشغيلية</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Amount & Date -->
+                <MudItem xs="12" sm="6" md="3">
+                    <MudNumericField @bind-Value="_amount"
+                                     Label="المبلغ (ر.س) *"
+                                     Required="true"
+                                     Min="1"
+                                     Format="N2"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudDatePicker @bind-Date="_expenseDate"
+                                   Label="تاريخ الصرف *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Paid By -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_paidBy"
+                                  Label="القائم بالصرف / الجهة الدافعة *"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Description -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="بيان المصروف وتفاصيله"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Error"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>تسجيل المصروف</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private Guid? _caseId;
+    private string _expenseType = "رسوم قضائية وتكاليف محاكم";
+    private decimal _amount = 250;
+    private DateTime? _expenseDate = DateTime.Today;
+    private string _paidBy = "خزينة المكتب";
+    private string? _description;
+
+    private List<CaseDto> _cases = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var casesResult = await Mediator.Send(new GetCasesQuery(PageSize: 100));
+            if (casesResult.IsSuccess && casesResult.Value != null)
+            {
+                _cases = casesResult.Value.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل القضايا: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CreateExpenseCommand(
+                _caseId,
+                _expenseType,
+                _amount,
+                _expenseDate ?? DateTime.Today,
+                _description,
+                null,
+                _paidBy,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تسجيل سند الصرف والمصروف بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

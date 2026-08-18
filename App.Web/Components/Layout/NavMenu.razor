@@ -1,0 +1,57 @@
+<div class="pa-4 d-flex align-center gap-3 border-b" style="border-color: var(--mud-palette-divider) !important;">
+    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Rounded="true" Size="Size.Medium">
+        <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Medium" />
+    </MudAvatar>
+    <div>
+        <MudText Typo="Typo.subtitle1" Class="fw-bold lh-sm">مكتب المحاماة</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">الإصدار 1.0 - .NET 10</MudText>
+    </div>
+</div>
+
+<MudNavMenu Bordered="false" Rounded="true" Margin="Margin.Dense" Class="pa-2">
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" IconColor="Color.Primary">
+        الرئيسية (لوحة التحكم)
+    </MudNavLink>
+
+    <MudNavLink Href="clients" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People" IconColor="Color.Info">
+        إدارة الموكلين
+    </MudNavLink>
+
+    <MudNavLink Href="cases" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Gavel" IconColor="Color.Warning">
+        القضايا والدعاوى
+    </MudNavLink>
+
+    <MudNavLink Href="hearings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth" IconColor="Color.Error">
+        جلسات المحاكم
+    </MudNavLink>
+
+    <MudNavLink Href="consultations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Forum" IconColor="Color.Tertiary">
+        الاستشارات القانونية
+    </MudNavLink>
+
+    <MudNavLink Href="power-of-attorney" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assignment" IconColor="Color.Secondary">
+        التوكيلات الرسمية
+    </MudNavLink>
+
+    <MudNavLink Href="finance" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet" IconColor="Color.Success">
+        الشؤون المالية والتحصيل
+    </MudNavLink>
+
+    <MudNavLink Href="documents" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FolderCopy" IconColor="Color.Default">
+        إدارة المستندات والأرشيف
+    </MudNavLink>
+
+    <MudNavLink Href="tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Checklist" IconColor="Color.Info">
+        المهام والمتابعة
+    </MudNavLink>
+
+    <MudNavLink Href="notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications" IconColor="Color.Warning">
+        مركز التنبيهات
+    </MudNavLink>
+
+    <MudDivider Class="my-2" />
+
+    <MudNavLink Href="users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ManageAccounts" IconColor="Color.Default">
+        المستخدمين والصلاحيات
+    </MudNavLink>
+</MudNavMenu>

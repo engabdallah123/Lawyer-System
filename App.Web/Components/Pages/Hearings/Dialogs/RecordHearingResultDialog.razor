@@ -1,0 +1,161 @@
+@using global::App.Application.Hearings.Commands.RecordHearingResult
+@using global::App.Application.Hearings.DTOs
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                تسجيل قرار الجلسة للقضية: <b>@HearingItem.CaseTitle</b> (رقم: @HearingItem.CaseInternalNumber)
+            </MudText>
+
+            <MudGrid>
+                <!-- Decision / Result -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_result"
+                                  Label="قرار أو نتيجة الجلسة *"
+                                  Required="true"
+                                  RequiredError="النتيجة أو القرار مطلوب"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Placeholder="مثال: تم تأجيل نظر الدعوى لتبادل المذكرات، أو تم صدور الحكم بإلزام المدعى عليه..." />
+                </MudItem>
+
+                <!-- Next Hearing Checkbox & Fields -->
+                <MudItem xs="12">
+                    <MudCheckBox @bind-Value="_hasScheduleNextHearing"
+                                 Label="تم تحديد موعد جلسة قادمة"
+                                 Color="Color.Primary" />
+                </MudItem>
+
+                @if (_hasScheduleNextHearing)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudDatePicker @bind-Date="_nextHearingDate"
+                                       Label="تاريخ الجلسة القادمة"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTimePicker @bind-Time="_nextHearingTime"
+                                       Label="وقت الجلسة القادمة"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_nextHearingType"
+                                      Label="سبب / نوع الجلسة القادمة"
+                                      Placeholder="مثال: لتقديم المستندات والمذكرات الختامية"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                }
+
+                <!-- Notes -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="ملاحظات وتوصيات للملف"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Success"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>حفظ نتيجة الجلسة</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public HearingDto HearingItem { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _result = string.Empty;
+    private bool _hasScheduleNextHearing = false;
+    private DateTime? _nextHearingDate;
+    private TimeSpan? _nextHearingTime = new TimeSpan(10, 0, 0);
+    private string? _nextHearingType;
+    private string? _notes;
+
+    protected override void OnInitialized()
+    {
+        _result = HearingItem.Result ?? string.Empty;
+        _notes = HearingItem.Notes;
+        if (HearingItem.NextHearingDate.HasValue)
+        {
+            _hasScheduleNextHearing = true;
+            _nextHearingDate = HearingItem.NextHearingDate.Value;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new RecordHearingResultCommand(
+                HearingItem.Id,
+                _result,
+                _notes,
+                _hasScheduleNextHearing ? _nextHearingDate : null,
+                _hasScheduleNextHearing ? _nextHearingTime : null,
+                _hasScheduleNextHearing ? _nextHearingType : null,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تسجيل وتوثيق قرار الجلسة بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

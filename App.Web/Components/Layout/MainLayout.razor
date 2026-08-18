@@ -1,0 +1,214 @@
+@inherits LayoutComponentBase
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" IsRtl="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <!-- Top AppBar -->
+    <MudAppBar Elevation="1" Dense="false" Color="Color.Surface" Class="px-4">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-2">
+            <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Primary" Size="Size.Medium" />
+            <MudText Typo="Typo.h6" Class="fw-bold" Color="Color.Primary">نظام إدارة مكاتب المحاماة</MudText>
+        </MudStack>
+
+        <MudSpacer />
+
+        <!-- Quick Global Search -->
+        <MudTextField T="string" Placeholder="بحث سريع (موكل، قضية، جلسة، مستند...)" Adornment="Adornment.Start" 
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="d-none d-md-flex mx-4" Style="max-width: 380px;" />
+
+        <!-- Dark/Light Mode Toggle -->
+        <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
+            <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
+                           Color="Color.Inherit" OnClick="@ToggleTheme" />
+        </MudTooltip>
+
+        <!-- Notifications Menu -->
+        <MudBadge Dot="true" Color="Color.Error" Overlap="true" Class="mx-2">
+            <MudMenu Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                <MudMenuItem>
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">جلسة محكمة قادمة</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">الدائرة التجارية الرابعة - غداً 10:00 ص</MudText>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem>
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">انتهاء سريان توكيل</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">توكيل الموكل أحمد المنصوري ينتهي خلال 7 أيام</MudText>
+                </MudMenuItem>
+                <MudDivider />
+                <MudMenuItem Class="text-center">
+                    <MudLink Href="/notifications" Typo="Typo.caption" Color="Color.Primary">عرض كافة الإشعارات</MudLink>
+                </MudMenuItem>
+            </MudMenu>
+        </MudBadge>
+
+        <!-- User Profile Avatar & Menu -->
+        @if (AuthStateProvider.IsAuthenticated)
+        {
+            var currentUser = AuthStateProvider.CurrentUser!;
+            <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Class="ms-2">
+                <ActivatorContent>
+                    <MudAvatar Color="Color.Primary" Size="Size.Medium" Style="cursor: pointer;">
+                        @(string.IsNullOrEmpty(currentUser.FullName) ? "U" : currentUser.FullName.Substring(0, 1))
+                    </MudAvatar>
+                </ActivatorContent>
+                <ChildContent>
+                    <div class="px-4 py-2">
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold">@currentUser.FullName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@currentUser.Email</MudText>
+                        <div>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="mt-1">
+                                @AppRoles.GetArabicName(currentUser.Role)
+                            </MudChip>
+                        </div>
+                    </div>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.People" Href="/users">إدارة المستخدمين والصلاحيات</MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
+                        تسجيل الخروج
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.Login"
+                       Href="/login"
+                       Class="ms-2">
+                تسجيل الدخول
+            </MudButton>
+        }
+    </MudAppBar>
+
+    <!-- Side Navigation Drawer -->
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false">
+        <NavMenu />
+    </MudDrawer>
+
+    <!-- Main Content Area -->
+    <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh;">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    حدث خطأ غير متوقع في النظام.
+    <a href="." class="reload">إعادة تحميل الصفحة</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = false;
+
+    protected override void OnInitialized()
+    {
+        AuthStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+    }
+
+    private void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    private void HandleLogout()
+    {
+        AuthStateProvider.MarkUserAsLoggedOut();
+        Snackbar.Add("تم تسجيل الخروج بنجاح", Severity.Info);
+        Navigation.NavigateTo("/login");
+    }
+
+    private readonly MudTheme _customTheme = new()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#1e3a8a",
+            PrimaryContrastText = "#ffffff",
+            Secondary = "#b45309",
+            SecondaryContrastText = "#ffffff",
+            Tertiary = "#047857",
+            AppbarBackground = "#ffffff",
+            AppbarText = "#1e293b",
+            Background = "#f8fafc",
+            Surface = "#ffffff",
+            DrawerBackground = "#ffffff",
+            DrawerText = "#334155",
+            DrawerIcon = "#64748b",
+            TextPrimary = "#0f172a",
+            TextSecondary = "#64748b",
+            ActionDefault = "#475569",
+            Divider = "#e2e8f0",
+            LinesDefault = "#e2e8f0",
+            Success = "#10b981",
+            Warning = "#f59e0b",
+            Error = "#ef4444",
+            Info = "#3b82f6"
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#3b82f6",
+            PrimaryContrastText = "#ffffff",
+            Secondary = "#fbbf24",
+            SecondaryContrastText = "#0f172a",
+            Tertiary = "#34d399",
+            AppbarBackground = "#1e293b",
+            AppbarText = "#f1f5f9",
+            Background = "#0f172a",
+            Surface = "#1e293b",
+            DrawerBackground = "#1e293b",
+            DrawerText = "#cbd5e1",
+            DrawerIcon = "#94a3b8",
+            TextPrimary = "#f8fafc",
+            TextSecondary = "#94a3b8",
+            ActionDefault = "#cbd5e1",
+            Divider = "#334155",
+            LinesDefault = "#334155",
+            Success = "#34d399",
+            Warning = "#fbbf24",
+            Error = "#f87171",
+            Info = "#60a5fa"
+        },
+        LayoutProperties = new LayoutProperties()
+        {
+            DefaultBorderRadius = "10px",
+            AppbarHeight = "64px",
+            DrawerWidthLeft = "280px",
+            DrawerWidthRight = "280px"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "Cairo", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif" },
+                FontSize = ".925rem"
+            },
+            H5 = new H5Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "700" },
+            H6 = new H6Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "700" },
+            Subtitle1 = new Subtitle1Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "600" },
+            Subtitle2 = new Subtitle2Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "600" },
+            Button = new ButtonTypography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "600" }
+        }
+    };
+}

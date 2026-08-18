@@ -1,0 +1,171 @@
+@page "/notifications"
+@using global::App.Application.Notifications.Commands.MarkAllNotificationsAsRead
+@using global::App.Application.Notifications.Commands.MarkNotificationAsRead
+@using global::App.Application.Notifications.DTOs
+@using global::App.Application.Notifications.Queries.GetUserNotifications
+@using global::App.Domain.Notifications.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>مركز التنبيهات والإشعارات | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Mark All Read Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            مركز التنبيهات والإشعارات 🔔
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            تنبيهات الجلسات، المهام المستحقة، الفواتير، ومواعيد انتهاء الوكالات الشرعية
+        </MudText>
+    </div>
+
+    @if (_notifications.Any(n => !n.IsRead))
+    {
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.DoneAll"
+                   OnClick="MarkAllAsRead"
+                   Size="Size.Small">
+            تحديد الكل كمقروء
+        </MudButton>
+    }
+</div>
+
+<!-- Filter Tabs -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" ActivePanelIndexChanged="OnTabChanged">
+        <MudTabPanel Text="كافة التنبيهات" Icon="@Icons.Material.Filled.Notifications" />
+        <MudTabPanel Text="غير المقروءة فقط" Icon="@Icons.Material.Filled.MarkEmailUnread" />
+    </MudTabs>
+</MudCard>
+
+<!-- Notifications List -->
+@if (_isLoading)
+{
+    <div class="d-flex justify-center align-center pa-8">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <span class="ms-3">جاري تحميل الإشعارات...</span>
+    </div>
+}
+else if (_notifications.Count == 0)
+{
+    <MudCard Elevation="0" Class="glass-card border pa-8 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+        <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد إشعارات جديدة</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">أنت على اطلاع دائم بجميع مستجدات العمل والقضايا</MudText>
+    </MudCard>
+}
+else
+{
+    <div class="d-flex flex-column gap-3">
+        @foreach (var notification in _notifications)
+        {
+            <MudCard Elevation="0" Class="@($"glass-card border {(notification.IsRead ? "opacity-75" : "border-primary")}")">
+                <MudCardContent Class="py-3 px-4">
+                    <div class="d-flex align-start justify-space-between gap-3">
+                        <div class="d-flex align-start gap-3">
+                            <MudAvatar Color="@(notification.IsRead ? Color.Default : Color.Primary)" Size="Size.Medium">
+                                <MudIcon Icon="@GetNotificationIcon(notification.Type)" />
+                            </MudAvatar>
+                            <div>
+                                <div class="d-flex align-center gap-2">
+                                    <MudText Typo="Typo.subtitle2" Class="@(notification.IsRead ? "" : "fw-bold text-primary")">
+                                        @notification.Title
+                                    </MudText>
+                                    @if (!notification.IsRead)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Style="height: 18px; font-size: 0.65rem;">جديد</MudChip>
+                                    }
+                                </div>
+                                <MudText Typo="Typo.body2" Class="mt-1">@notification.Message</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1 d-block">
+                                    @notification.CreatedAt.ToString("yyyy/MM/dd - hh:mm tt")
+                                </MudText>
+                            </div>
+                        </div>
+
+                        @if (!notification.IsRead)
+                        {
+                            <MudTooltip Text="تحديد كمقروء">
+                                <MudIconButton Icon="@Icons.Material.Filled.Check"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => MarkAsRead(notification.Id))" />
+                            </MudTooltip>
+                        }
+                    </div>
+                </MudCardContent>
+            </MudCard>
+        }
+    </div>
+}
+
+@code {
+    private List<NotificationDto> _notifications = [];
+    private bool _isLoading = true;
+    private int _selectedTabIndex = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNotifications();
+    }
+
+    private async Task OnTabChanged(int index)
+    {
+        _selectedTabIndex = index;
+        await LoadNotifications();
+    }
+
+    private async Task LoadNotifications()
+    {
+        _isLoading = true;
+        try
+        {
+            var userId = AuthStateProvider.CurrentUser?.Id;
+            bool? onlyUnread = _selectedTabIndex == 1 ? true : null;
+
+            var res = await Mediator.Send(new GetUserNotificationsQuery(UserId: userId, OnlyUnread: onlyUnread, PageSize: 50));
+            if (res.IsSuccess && res.Value != null)
+                _notifications = res.Value.ToList();
+            else
+                _notifications = [];
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل التنبيهات: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetNotificationIcon(NotificationType type) => type switch
+    {
+        NotificationType.WhatsApp => Icons.Custom.Brands.WhatsApp,
+        NotificationType.Email => Icons.Material.Filled.Email,
+        _ => Icons.Material.Filled.NotificationsActive
+    };
+
+    private async Task MarkAsRead(Guid id)
+    {
+        var result = await Mediator.Send(new MarkNotificationAsReadCommand(id));
+        if (result.IsSuccess)
+        {
+            await LoadNotifications();
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        var userId = AuthStateProvider.CurrentUser?.Id ?? string.Empty;
+        var result = await Mediator.Send(new MarkAllNotificationsAsReadCommand(userId));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("تم تحديد كافة الإشعارات كمقروءة", Severity.Success);
+            await LoadNotifications();
+        }
+    }
+}

@@ -1,0 +1,272 @@
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Application.Finance.Commands.CreateInvoice
+@using global::App.Domain.Clients.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Invoice Number -->
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_invoiceNumber"
+                                  Label="رقم الفاتورة *"
+                                  Required="true"
+                                  RequiredError="رقم الفاتورة مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Client Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid"
+                               Label="الموكل المستحق عليه *"
+                               @bind-Value="_clientId"
+                               Required="true"
+                               RequiredError="يرجى اختيار الموكل"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var client in _clients)
+                        {
+                            var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+                            <MudSelectItem Value="@client.Id">@clientName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Linked Case Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="القضية المرتبطة (اختياري)"
+                               @bind-Value="_caseId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var c in _cases)
+                        {
+                            <MudSelectItem Value="@((Guid?)c.Id)">@c.InternalNumber - @c.Title</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Issue Date & Due Date -->
+                <MudItem xs="12" sm="6" md="3">
+                    <MudDatePicker @bind-Date="_issueDate"
+                                   Label="تاريخ الإصدار *"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudDatePicker @bind-Date="_dueDate"
+                                   Label="تاريخ الاستحقاق"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Items Title -->
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary mt-2">
+                        بنود الفاتورة والخدمات القانونية
+                    </MudText>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_itemDescription"
+                                  Label="بيان الخدمة *"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="6" md="3">
+                    <MudNumericField @bind-Value="_itemQuantity"
+                                     Label="الكمية"
+                                     Min="1"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="6" md="3">
+                    <MudNumericField @bind-Value="_itemUnitPrice"
+                                     Label="سعر الوحدة (ر.س) *"
+                                     Min="1"
+                                     Format="N2"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Discount & Tax -->
+                <MudItem xs="6" md="6">
+                    <MudNumericField @bind-Value="_discount"
+                                     Label="الخصم (ر.س)"
+                                     Min="0"
+                                     Format="N2"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="6" md="6">
+                    <MudNumericField @bind-Value="_taxAmount"
+                                     Label="ضريبة القيمة المضافة (ر.س)"
+                                     Min="0"
+                                     Format="N2"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Total Preview -->
+                <MudItem xs="12">
+                    <MudPaper Class="pa-3 bg-light-card rounded d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.body2">الإجمالي المستحق الصافي:</MudText>
+                        <MudText Typo="Typo.h6" Class="fw-bold text-primary">
+                            @(((_itemQuantity * _itemUnitPrice) - _discount + _taxAmount).ToString("N2")) ر.س
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <!-- Notes -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="شروط الدفع وملاحظات"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>إصدار الفاتورة</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid? PreselectedCaseId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _invoiceNumber = $"INV-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(100, 999)}";
+    private Guid _clientId;
+    private Guid? _caseId;
+    private DateTime? _issueDate = DateTime.Today;
+    private DateTime? _dueDate = DateTime.Today.AddDays(15);
+
+    private string _itemDescription = "أتعاب ومصاريف مباشرة عن الترافع وتقديم المذكرات";
+    private decimal _itemQuantity = 1;
+    private decimal _itemUnitPrice = 5000;
+    private decimal _discount = 0;
+    private decimal _taxAmount = 750; // 15% VAT example
+    private string? _notes;
+
+    private List<ClientDto> _clients = [];
+    private List<CaseDto> _cases = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _caseId = PreselectedCaseId;
+
+        try
+        {
+            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 100));
+            var casesTask = Mediator.Send(new GetCasesQuery(PageSize: 100));
+
+            await Task.WhenAll(clientsTask, casesTask);
+
+            if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
+            {
+                _clients = clientsTask.Result.Value.ToList();
+                if (_clients.Count > 0)
+                    _clientId = _clients[0].Id;
+            }
+
+            if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
+            {
+                _cases = casesTask.Result.Value.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل البيانات: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || _clientId == Guid.Empty)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var items = new List<CreateInvoiceItemRequest>
+            {
+                new CreateInvoiceItemRequest(_itemDescription, _itemQuantity, _itemUnitPrice)
+            };
+
+            var command = new CreateInvoiceCommand(
+                _invoiceNumber,
+                _clientId,
+                _caseId,
+                null,
+                _issueDate ?? DateTime.Today,
+                _dueDate,
+                _discount,
+                _taxAmount,
+                _notes,
+                items,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم إصدار الفاتورة وحفظها بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

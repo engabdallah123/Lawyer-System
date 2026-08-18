@@ -1,0 +1,123 @@
+* {
+    font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+html, body {
+    direction: rtl;
+    text-align: right;
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.5);
+}
+
+/* Glassmorphism & Card Glow Effects */
+.glass-card {
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-divider) !important;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px -1px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease-in-out;
+}
+
+.glass-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Dark mode specific fine-tuning */
+.mud-theme-dark .glass-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+}
+
+.mud-theme-dark .bg-light-card {
+    background: #0f172a !important;
+}
+
+.bg-light-card {
+    background: #f1f5f9;
+}
+
+/* Quick Stat Gradient Backgrounds */
+.stat-gradient-primary {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+}
+
+.stat-gradient-gold {
+    background: linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
+    color: white;
+}
+
+.stat-gradient-success {
+    background: linear-gradient(135deg, #065f46 0%, #10b981 100%);
+    color: white;
+}
+
+.stat-gradient-info {
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+    color: white;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 600px) {
+    .mud-main-content {
+        padding: 12px !important;
+    }
+    
+    .mud-table-root .mud-table-body .mud-table-cell {
+        padding: 8px 12px !important;
+    }
+
+    .mud-dialog .mud-dialog-content {
+        padding: 12px !important;
+    }
+}
+
+/* Blazor error boundary */
+#blazor-error-ui {
+    background: #dc2626;
+    bottom: 0;
+    box-shadow: 0 -1px 10px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.8rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 10000;
+    color: white;
+    font-weight: 500;
+}
+
+#blazor-error-ui .reload {
+    color: #fef08a;
+    margin-right: 1rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    left: 1rem;
+    top: 0.8rem;
+}

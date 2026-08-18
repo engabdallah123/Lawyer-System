@@ -1,0 +1,112 @@
+@using global::App.Application.Hearings.Commands.RescheduleHearing
+@using global::App.Application.Hearings.DTOs
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+                تأجيل / إعادة جدولة موعد الجلسة للقضية: <b>@HearingItem.CaseTitle</b>
+            </MudText>
+
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_newDate"
+                                   Label="الموعد الجديد للجلسة *"
+                                   Required="true"
+                                   RequiredError="تاريخ الموعد الجديد مطلوب"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTimePicker @bind-Time="_newTime"
+                                   Label="وقت الجلسة الجديد"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Warning"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري التحديث...</span>
+            }
+            else
+            {
+                <span>تأكيد الموعد الجديد</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public HearingDto HearingItem { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private DateTime? _newDate;
+    private TimeSpan? _newTime;
+
+    protected override void OnInitialized()
+    {
+        _newDate = HearingItem.HearingDate.AddDays(7);
+        _newTime = HearingItem.HearingTime ?? new TimeSpan(10, 0, 0);
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid || !_newDate.HasValue)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new RescheduleHearingCommand(
+                HearingItem.Id,
+                _newDate.Value,
+                _newTime,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تمت إعادة جدولة موعد الجلسة بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

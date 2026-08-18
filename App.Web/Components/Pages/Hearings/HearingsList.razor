@@ -1,0 +1,226 @@
+@page "/hearings"
+@using global::App.Application.Hearings.DTOs
+@using global::App.Application.Hearings.Queries.GetHearings
+@using global::App.Application.Hearings.Queries.GetTodayHearings
+@using global::App.Web.Components.Pages.Hearings.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>جلسات المحاكم | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Schedule Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            جلسات ومواعيد المحاكم 🏛️
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            جدول الجلسات، الدوائر القضائية، وقرارات ومحاضر الجلسات
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.CalendarMonth"
+               OnClick="@(() => OpenCreateHearingDialog())"
+               Size="Size.Medium">
+        جدولة جلسة جديدة
+    </MudButton>
+</div>
+
+<!-- Tabs for Filters -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" ActivePanelIndexChanged="OnTabChanged">
+        <MudTabPanel Text="كافة الجلسات" Icon="@Icons.Material.Filled.ListAlt" />
+        <MudTabPanel Text="جلسات اليوم (عاجل)" Icon="@Icons.Material.Filled.Today" BadgeData="@_todayHearingsCount" BadgeColor="Color.Error" />
+    </MudTabs>
+</MudCard>
+
+<!-- Hearings Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل جدول الجلسات...</span>
+            </div>
+        }
+        else if (_hearings.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد جلسات مسجلة في هذا القسم</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك جدولة جلسة جديدة عبر زر الجدولة بالأعلى</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_hearings" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>رقم القضية وموضوعها</MudTh>
+                    <MudTh>المحكمة / الدائرة</MudTh>
+                    <MudTh>تاريخ ووقت الجلسة</MudTh>
+                    <MudTh>نوع ومرحلة الجلسة</MudTh>
+                    <MudTh>قرار / نتيجة الجلسة</MudTh>
+                    <MudTh>الجلسة القادمة</MudTh>
+                    <MudTh Style="text-align: center;">الإجراءات</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="القضية">
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold text-primary">@context.CaseInternalNumber</span>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@context.CaseTitle</MudText>
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="المحكمة">
+                        <div class="d-flex flex-column">
+                            <span>@(context.CourtName ?? "-")</span>
+                            @if (!string.IsNullOrEmpty(context.Circuit))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">دائرة: @context.Circuit</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="التاريخ والوقت">
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold">@context.HearingDate.ToString("yyyy/MM/dd")</span>
+                            @if (context.HearingTime.HasValue)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Info">@context.HearingTime.Value.ToString(@"hh\:mm")</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="نوع الجلسة">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
+                            @context.HearingType
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="القرار / النتيجة">
+                        @if (!string.IsNullOrEmpty(context.Result))
+                        {
+                            <MudTooltip Text="@context.Result">
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Success">
+                                    تم تسجيل القرار
+                                </MudChip>
+                            </MudTooltip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Warning">
+                                بانتظار الانعقاد
+                            </MudChip>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="الجلسة القادمة">
+                        @(context.NextHearingDate.HasValue ? context.NextHearingDate.Value.ToString("yyyy/MM/dd") : "-")
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomLeft">
+                            <MudMenuItem Icon="@Icons.Material.Filled.EditNote" OnClick="@(() => OpenRecordResultDialog(context))">
+                                تسجيل / تعديل قرار الجلسة
+                            </MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Update" OnClick="@(() => OpenRescheduleDialog(context))">
+                                تأجيل / إعادة جدولة الجلسة
+                            </MudMenuItem>
+                        </MudMenu>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<HearingDto> _hearings = [];
+    private bool _isLoading = true;
+    private int _selectedTabIndex = 0;
+    private int _todayHearingsCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHearings();
+    }
+
+    private async Task OnTabChanged(int index)
+    {
+        _selectedTabIndex = index;
+        await LoadHearings();
+    }
+
+    private async Task LoadHearings()
+    {
+        _isLoading = true;
+        try
+        {
+            if (_selectedTabIndex == 1) // Today Hearings
+            {
+                var todayResult = await Mediator.Send(new GetTodayHearingsQuery());
+                if (todayResult.IsSuccess && todayResult.Value != null)
+                {
+                    _hearings = todayResult.Value.ToList();
+                    _todayHearingsCount = _hearings.Count;
+                }
+                else
+                {
+                    _hearings = [];
+                }
+            }
+            else // All Hearings
+            {
+                var result = await Mediator.Send(new GetHearingsQuery(PageSize: 50));
+                if (result.IsSuccess && result.Value != null)
+                {
+                    _hearings = result.Value.ToList();
+                    _todayHearingsCount = _hearings.Count(h => h.HearingDate.Date == DateTime.Today);
+                }
+                else
+                {
+                    _hearings = [];
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل الجلسات: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenCreateHearingDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateHearingDialog>("جدولة موعد جلسة بالمحكمة", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadHearings();
+    }
+
+    private async Task OpenRecordResultDialog(HearingDto hearing)
+    {
+        var parameters = new DialogParameters { ["HearingItem"] = hearing };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<RecordHearingResultDialog>("توثيق وتسجيل قرار الجلسة", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadHearings();
+    }
+
+    private async Task OpenRescheduleDialog(HearingDto hearing)
+    {
+        var parameters = new DialogParameters { ["HearingItem"] = hearing };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<RescheduleHearingDialog>("تأجيل وإعادة جدولة الجلسة", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadHearings();
+    }
+}

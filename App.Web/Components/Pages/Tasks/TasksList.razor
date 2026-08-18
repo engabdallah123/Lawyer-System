@@ -1,0 +1,263 @@
+@page "/tasks"
+@using global::App.Application.Tasks.Commands.CancelLegalTask
+@using global::App.Application.Tasks.Commands.CompleteLegalTask
+@using global::App.Application.Tasks.DTOs
+@using global::App.Application.Tasks.Queries.GetOverdueTasks
+@using global::App.Application.Tasks.Queries.GetTasksByUser
+@using global::App.Domain.Tasks.Enums
+@using global::App.Web.Components.Pages.Tasks.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>المهام والمتابعات | نظام إدارة مكاتب المحاماة</PageTitle>
+
+<!-- Header & Add Task Button -->
+<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+    <div>
+        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
+            المهام والمتابعات القانونية 📋
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">
+            توزيع الأعمال، متابعة اللوائح والمواعيد، قياس إنجاز فريق العمل
+        </MudText>
+    </div>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.AddTask"
+               OnClick="@(() => OpenCreateTaskDialog())"
+               Size="Size.Medium">
+        تكليف مهمة جديدة
+    </MudButton>
+</div>
+
+<!-- Tabs for Filtering -->
+<MudCard Elevation="0" Class="glass-card border mb-6">
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" ActivePanelIndexChanged="OnTabChanged">
+        <MudTabPanel Text="كافة المهام" Icon="@Icons.Material.Filled.FormatListBulleted" />
+        <MudTabPanel Text="المهام المتأخرة" Icon="@Icons.Material.Filled.Warning" BadgeData="@_overdueCount" BadgeColor="Color.Error" />
+        <MudTabPanel Text="قيد التنفيذ / المعلقة" Icon="@Icons.Material.Filled.PendingActions" />
+        <MudTabPanel Text="المهام المكتملة" Icon="@Icons.Material.Filled.CheckCircle" />
+    </MudTabs>
+</MudCard>
+
+<!-- Tasks Table -->
+<MudCard Elevation="0" Class="glass-card border">
+    <MudCardContent Class="pa-0">
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل المهام...</span>
+            </div>
+        }
+        else if (_tasks.Count == 0)
+        {
+            <div class="pa-10 text-center">
+                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Color="Color.Success" Class="mb-2" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">لا توجد مهام في هذه القائمة</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">يمكنك تكليف مهمة جديدة عبر الزر بالأعلى</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@_tasks" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+                <HeaderContent>
+                    <MudTh>عنوان المهمة</MudTh>
+                    <MudTh>الأولوية</MudTh>
+                    <MudTh>القضية المرتبطة</MudTh>
+                    <MudTh>تاريخ الاستحقاق</MudTh>
+                    <MudTh>الحالة</MudTh>
+                    <MudTh Style="text-align: center;">الإجراء السريع</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="المهمة">
+                        <div class="d-flex flex-column">
+                            <span class="fw-bold @(context.Status == LegalTaskStatus.Completed ? "text-decoration-line-through text-muted" : "")">
+                                @context.Title
+                            </span>
+                            @if (!string.IsNullOrEmpty(context.Description))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                            }
+                        </div>
+                    </MudTd>
+                    <MudTd DataLabel="الأولوية">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetPriorityColor(context.Priority)">
+                            @context.PriorityName
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="القضية">
+                        @(string.IsNullOrEmpty(context.CaseInternalNumber) ? "مهمة عامة" : $"{context.CaseInternalNumber} - {context.CaseTitle}")
+                    </MudTd>
+                    <MudTd DataLabel="الاستحقاق">
+                        @if (context.DueDate.HasValue)
+                        {
+                            var isOverdue = context.DueDate.Value < DateTime.UtcNow && context.Status != LegalTaskStatus.Completed;
+                            <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                @context.DueDate.Value.ToString("yyyy/MM/dd")
+                            </span>
+                        }
+                        else
+                        {
+                            <span>غير محدد</span>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="الحالة">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@GetStatusColor(context.Status)">
+                            @context.StatusName
+                        </MudChip>
+                    </MudTd>
+                    <MudTd Style="text-align: center;">
+                        @if (context.Status != LegalTaskStatus.Completed && context.Status != LegalTaskStatus.Cancelled)
+                        {
+                            <div class="d-flex justify-center gap-1">
+                                <MudTooltip Text="تعليم كمكتملة">
+                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" OnClick="@(() => MarkAsCompleted(context))" />
+                                </MudTooltip>
+                                <MudTooltip Text="إلغاء المهمة">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="@(() => MarkAsCancelled(context))" />
+                                </MudTooltip>
+                            </div>
+                        }
+                        else if (context.Status == LegalTaskStatus.Completed)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.DoneAll" Color="Color.Success" Size="Size.Small" />
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Default" Size="Size.Small" />
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private List<LegalTaskDto> _tasks = [];
+    private bool _isLoading = true;
+    private int _selectedTabIndex = 0;
+    private int _overdueCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTasks();
+    }
+
+    private async Task OnTabChanged(int index)
+    {
+        _selectedTabIndex = index;
+        await LoadTasks();
+    }
+
+    private async Task LoadTasks()
+    {
+        _isLoading = true;
+        try
+        {
+            if (_selectedTabIndex == 1) // Overdue
+            {
+                var overdueRes = await Mediator.Send(new GetOverdueTasksQuery());
+                if (overdueRes.IsSuccess && overdueRes.Value != null)
+                {
+                    _tasks = overdueRes.Value.ToList();
+                    _overdueCount = _tasks.Count;
+                }
+                else
+                {
+                    _tasks = [];
+                }
+            }
+            else
+            {
+                int? statusFilter = _selectedTabIndex switch
+                {
+                    2 => (int)LegalTaskStatus.Pending, // or in progress
+                    3 => (int)LegalTaskStatus.Completed,
+                    _ => null
+                };
+
+                var res = await Mediator.Send(new GetTasksByUserQuery(Status: statusFilter, PageSize: 100));
+                if (res.IsSuccess && res.Value != null)
+                {
+                    _tasks = res.Value.ToList();
+                    _overdueCount = _tasks.Count(t => t.DueDate.HasValue && t.DueDate.Value < DateTime.UtcNow && t.Status != LegalTaskStatus.Completed);
+                }
+                else
+                {
+                    _tasks = [];
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل المهام: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetPriorityColor(TaskPriority priority) => priority switch
+    {
+        TaskPriority.Urgent => Color.Error,
+        TaskPriority.High => Color.Warning,
+        TaskPriority.Normal => Color.Info,
+        TaskPriority.Low => Color.Default,
+        _ => Color.Default
+    };
+
+    private Color GetStatusColor(LegalTaskStatus status) => status switch
+    {
+        LegalTaskStatus.Completed => Color.Success,
+        LegalTaskStatus.InProgress => Color.Primary,
+        LegalTaskStatus.Pending => Color.Warning,
+        LegalTaskStatus.Cancelled => Color.Error,
+        _ => Color.Default
+    };
+
+    private async Task OpenCreateTaskDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateTaskDialog>("تكليف مهمة عمل جديدة", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadTasks();
+    }
+
+    private async Task MarkAsCompleted(LegalTaskDto task)
+    {
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+        var result = await Mediator.Send(new CompleteLegalTaskCommand(task.Id, userName));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("تم إنجاز وإكمال المهمة بنجاح", Severity.Success);
+            await LoadTasks();
+        }
+        else
+        {
+            Snackbar.Add(result.Error.Name, Severity.Error);
+        }
+    }
+
+    private async Task MarkAsCancelled(LegalTaskDto task)
+    {
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+        var result = await Mediator.Send(new CancelLegalTaskCommand(task.Id, userName));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("تم إلغاء المهمة", Severity.Info);
+            await LoadTasks();
+        }
+        else
+        {
+            Snackbar.Add(result.Error.Name, Severity.Error);
+        }
+    }
+}

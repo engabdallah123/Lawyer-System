@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/app/">
+    <Project Path="App.Application/App.Application.csproj" />
+    <Project Path="App.Domain/App.Domain.csproj" />
+    <Project Path="App.Infrastructure/App.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/host/">
+    <Project Path="App.Web/App.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/shared/">
+    <Project Path="Shared.Application/Shared.Application.csproj" />
+    <Project Path="Shared.Domain/Shared.Domain.csproj" />
+    <Project Path="Shared.Infrastructure/Shared.Infrastructure.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,244 @@
+@using global::App.Application.Clients.Commands.CreateClient
+@using global::App.Application.Clients.Commands.UpdateClient
+@using global::App.Application.Clients.DTOs
+@using global::App.Domain.Clients.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Client Type Selection -->
+                <MudItem xs="12">
+                    <MudRadioGroup T="ClientType" @bind-Value="_clientType" Class="d-flex gap-4">
+                        <MudRadio Value="ClientType.Individual" Color="Color.Primary">شخص طبيعي (فرد)</MudRadio>
+                        <MudRadio Value="ClientType.Company" Color="Color.Primary">شركة / مؤسسة</MudRadio>
+                    </MudRadioGroup>
+                </MudItem>
+
+                @if (_clientType == ClientType.Individual)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_fullName"
+                                      Label="الاسم الكامل للموكل *"
+                                      Required="true"
+                                      RequiredError="الاسم الكامل مطلوب"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_nationalId"
+                                      Label="رقم الهوية الوطنية / الإقامة"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_companyName"
+                                      Label="اسم الشركة / المنشأة *"
+                                      Required="true"
+                                      RequiredError="اسم الشركة مطلوب"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_commercialRegister"
+                                      Label="رقم السجل التجاري"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_phone"
+                                  Label="رقم الهاتف الأساسي *"
+                                  Required="true"
+                                  RequiredError="رقم الهاتف مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_mobile"
+                                  Label="رقم الجوال الإضافي"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_email"
+                                  Label="البريد الإلكتروني"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_city"
+                                  Label="المدينة"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_address"
+                                  Label="العنوان الوطني / التفصيلي"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="ملاحظات إضافية"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>@(ClientToEdit == null ? "إضافة الموكل" : "حفظ التعديلات")</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public ClientDto? ClientToEdit { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private ClientType _clientType = ClientType.Individual;
+    private string? _fullName;
+    private string? _companyName;
+    private string? _nationalId;
+    private string? _commercialRegister;
+    private string _phone = string.Empty;
+    private string? _mobile;
+    private string? _email;
+    private string? _address;
+    private string? _city;
+    private string? _notes;
+
+    protected override void OnInitialized()
+    {
+        if (ClientToEdit != null)
+        {
+            _clientType = ClientToEdit.ClientType;
+            _fullName = ClientToEdit.FullName;
+            _companyName = ClientToEdit.CompanyName;
+            _nationalId = ClientToEdit.NationalId;
+            _commercialRegister = ClientToEdit.CommercialRegister;
+            _phone = ClientToEdit.Phone;
+            _mobile = ClientToEdit.Mobile;
+            _email = ClientToEdit.Email;
+            _address = ClientToEdit.Address;
+            _city = ClientToEdit.City;
+            _notes = ClientToEdit.Notes;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid)
+            return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            if (ClientToEdit == null)
+            {
+                var command = new CreateClientCommand(
+                    _clientType,
+                    _fullName,
+                    _companyName,
+                    _nationalId,
+                    _commercialRegister,
+                    _phone,
+                    _mobile,
+                    _email,
+                    _address,
+                    _city,
+                    _notes,
+                    userName);
+
+                var result = await Mediator.Send(command);
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add("تمت إضافة الموكل بنجاح", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add(result.Error.Name, Severity.Error);
+                }
+            }
+            else
+            {
+                var command = new UpdateClientCommand(
+                    ClientToEdit.Id,
+                    _clientType,
+                    _fullName,
+                    _companyName,
+                    _nationalId,
+                    _commercialRegister,
+                    _phone,
+                    _mobile,
+                    _email,
+                    _address,
+                    _city,
+                    _notes,
+                    userName);
+
+                var result = await Mediator.Send(command);
+                if (result.IsSuccess)
+                {
+                    Snackbar.Add("تم تحديث بيانات الموكل بنجاح", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(true));
+                }
+                else
+                {
+                    Snackbar.Add(result.Error.Name, Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

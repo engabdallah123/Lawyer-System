@@ -1,0 +1,214 @@
+@inject IIdentityService IdentityService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid>
+                <!-- Basic Info -->
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_model.FullName"
+                                  Label="الاسم الكامل *"
+                                  Required="true"
+                                  RequiredError="الاسم الكامل مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField Value="@User.Email"
+                                  Label="البريد الإلكتروني"
+                                  ReadOnly="true"
+                                  Disabled="true"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_model.PhoneNumber"
+                                  Label="رقم الهاتف"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_model.JobTitle"
+                                  Label="المسمى الوظيفي"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <!-- Role Selection -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string"
+                               Label="الدور الأساسي *"
+                               Value="@_model.Role"
+                               ValueChanged="OnRoleChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        @foreach (var role in AppRoles.All)
+                        {
+                            <MudSelectItem Value="@role">@AppRoles.GetArabicName(role)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Status Active Toggle -->
+                <MudItem xs="12" md="6" Class="d-flex align-center">
+                    <MudSwitch @bind-Value="_model.IsActive"
+                               Label="@(_model.IsActive ? "الحساب نشط" : "الحساب معطل")"
+                               Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- Permissions Checklist Accordion -->
+            <div class="mt-4">
+                <div class="d-flex align-center justify-space-between mb-2">
+                    <MudText Typo="Typo.subtitle2" Class="fw-bold">
+                        الصلاحيات الممنوحة (@_selectedPermissions.Count صلاحية محددة)
+                    </MudText>
+                    <div>
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" OnClick="SelectAllPermissions">
+                            تحديد الكل
+                        </MudButton>
+                        <MudButton Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small" OnClick="ClearAllPermissions">
+                            إلغاء التحديد
+                        </MudButton>
+                    </div>
+                </div>
+
+                <MudExpansionPanels MultiExpansion="true" Dense="true">
+                    @foreach (var group in _permissionGroups)
+                    {
+                        <MudExpansionPanel Text="@($"{group.GroupName} ({group.Permissions.Count(p => _selectedPermissions.Contains(p.Value))}/{group.Permissions.Count})")">
+                            <MudGrid>
+                                @foreach (var perm in group.Permissions)
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudCheckBox T="bool"
+                                                     Value="@_selectedPermissions.Contains(perm.Value)"
+                                                     ValueChanged="@((bool val) => TogglePermission(perm.Value, val))"
+                                                     Label="@perm.DisplayName"
+                                                     Color="Color.Primary"
+                                                     Dense="true" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudExpansionPanel>
+                    }
+                </MudExpansionPanels>
+            </div>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <span>حفظ التعديلات</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public UserDto User { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private UpdateUserRequest _model = new();
+    private List<AppPermissions.PermissionGroup> _permissionGroups = AppPermissions.GetAllGroups();
+    private HashSet<string> _selectedPermissions = new();
+
+    protected override void OnInitialized()
+    {
+        _model = new UpdateUserRequest
+        {
+            Id = User.Id,
+            FullName = User.FullName,
+            Email = User.Email,
+            PhoneNumber = User.PhoneNumber,
+            JobTitle = User.JobTitle,
+            Role = User.Role,
+            IsActive = User.IsActive,
+            Permissions = new List<string>(User.Permissions)
+        };
+
+        _selectedPermissions = new HashSet<string>(User.Permissions);
+    }
+
+    private void OnRoleChanged(string newRole)
+    {
+        _model.Role = newRole;
+        // Optionally update permissions to role default
+        var defaults = AppPermissions.GetDefaultPermissionsForRole(newRole);
+        _selectedPermissions = new HashSet<string>(defaults);
+    }
+
+    private void TogglePermission(string permission, bool isChecked)
+    {
+        if (isChecked)
+            _selectedPermissions.Add(permission);
+        else
+            _selectedPermissions.Remove(permission);
+    }
+
+    private void SelectAllPermissions()
+    {
+        _selectedPermissions = new HashSet<string>(AppPermissions.GetAllPermissions());
+    }
+
+    private void ClearAllPermissions()
+    {
+        _selectedPermissions.Clear();
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid)
+            return;
+
+        _isSaving = true;
+        try
+        {
+            _model.Permissions = _selectedPermissions.ToList();
+            var result = await IdentityService.UpdateUserAsync(_model);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تحديث بيانات وصلاحيات المستخدم بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

@@ -52,6 +52,34 @@ html, body {
     background: var(--gold-primary);
 }
 
+/* Fixed Luxury Top AppBar (Static No Hover Shift) */
+.appbar-luxury {
+    background: var(--mud-palette-appbar-background) !important;
+    border-bottom: 1px solid var(--mud-palette-divider) !important;
+    backdrop-filter: blur(16px);
+    transform: none !important;
+    transition: none !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+}
+
+.appbar-luxury:hover {
+    transform: none !important;
+}
+
+/* Static Luxury Drawer Sidebar (No Hover Shift) */
+.drawer-luxury {
+    background: var(--mud-palette-drawer-background) !important;
+    border-left: 1px solid var(--mud-palette-divider) !important;
+    transform: none !important;
+    transition: none !important;
+}
+
+.drawer-luxury:hover {
+    transform: none !important;
+}
+
 /* Glassmorphism & Luxury Cards */
 .glass-card {
     background: var(--mud-palette-surface) !important;
@@ -63,7 +91,7 @@ html, body {
 }
 
 .glass-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-3px);
     box-shadow: var(--shadow-lg) !important;
     border-color: rgba(197, 160, 89, 0.3) !important;
 }
@@ -77,6 +105,65 @@ html, body {
 .mud-theme-dark .glass-card:hover {
     border-color: rgba(212, 175, 55, 0.4) !important;
     box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ========================================================= */
+/* RTL Form Inputs & Label Focus Alignment Overrides         */
+/* Fixes MudBlazor Outlined label jumping left on focus      */
+/* ========================================================= */
+.mud-input-label-outlined {
+    transform-origin: top right !important;
+    right: 14px !important;
+    left: auto !important;
+    text-align: right !important;
+}
+
+.mud-input-label-inputlabel {
+    transform-origin: top right !important;
+    right: 14px !important;
+    left: auto !important;
+    text-align: right !important;
+}
+
+.mud-input-label-animated {
+    transform-origin: top right !important;
+}
+
+.mud-input-outlined-border {
+    text-align: right !important;
+}
+
+.mud-input-outlined-border legend {
+    text-align: right !important;
+    margin-right: 10px !important;
+    margin-left: auto !important;
+    float: right !important;
+}
+
+.mud-input-control {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.mud-input > input.mud-input-root-outlined,
+.mud-input > textarea.mud-input-root-outlined {
+    text-align: right !important;
+    direction: rtl !important;
+}
+
+.mud-select .mud-select-input {
+    text-align: right !important;
+    direction: rtl !important;
+}
+
+.mud-input-adornment-start {
+    margin-right: 0 !important;
+    margin-left: 8px !important;
+}
+
+.mud-input-adornment-end {
+    margin-left: 0 !important;
+    margin-right: 8px !important;
 }
 
 /* Hero Welcome Banner */
@@ -185,6 +272,7 @@ html, body {
 .mud-nav-link:hover {
     background: rgba(197, 160, 89, 0.1) !important;
     color: var(--gold-primary) !important;
+    transform: none !important;
 }
 
 .mud-nav-link.active {
@@ -273,6 +361,7 @@ html, body {
 @media (max-width: 600px) {
     .mud-main-content {
         padding: 12px !important;
+        padding-top: 80px !important;
     }
     
     .hero-banner {

@@ -15,6 +15,13 @@ public sealed class CaseStatus
 
     private CaseStatus() { }
 
+    public CaseStatus(string name, string? color = null)
+    {
+        Name = name;
+        Color = color;
+        IsActive = true;
+    }
+
     public CaseStatus(int id, string name, string? color = null)
     {
         Id = id;

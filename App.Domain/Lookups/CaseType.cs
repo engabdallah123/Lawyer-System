@@ -15,6 +15,13 @@ public sealed class CaseType
 
     private CaseType() { }
 
+    public CaseType(string name, string? description = null)
+    {
+        Name = name;
+        Description = description;
+        IsActive = true;
+    }
+
     public CaseType(int id, string name, string? description = null)
     {
         Id = id;

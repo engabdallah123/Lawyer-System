@@ -10,8 +10,8 @@
 
 <MudRTLProvider RightToLeft="true">
     <MudLayout>
-        <!-- Top Executive AppBar -->
-        <MudAppBar Elevation="1" Dense="false" Class="px-4 glass-card border-b" Style="backdrop-filter: blur(16px); z-index: 1200;">
+        <!-- Top Executive AppBar (Fixed & Static Position) -->
+        <MudAppBar Elevation="1" Fixed="true" Dense="false" Class="px-4 appbar-luxury">
             <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Class="me-2" />
             
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-2">
@@ -31,7 +31,7 @@
                           AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Class="d-none d-md-flex mx-4 search-input-pill" Style="max-width: 420px; width: 100%;" />
 
-            <!-- Dark/Light Theme Toggle with Smooth Transition -->
+            <!-- Dark/Light Theme Toggle -->
             <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
                 <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
                                Color="Color.Warning" OnClick="@ToggleTheme" Class="mx-1" />
@@ -114,13 +114,13 @@
             }
         </MudAppBar>
 
-        <!-- Side Navigation Drawer -->
-        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false" Class="glass-card">
+        <!-- Side Navigation Drawer (Static Sidebar) -->
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false" Class="drawer-luxury">
             <NavMenu />
         </MudDrawer>
 
-        <!-- Main Workspace Area -->
-        <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh;">
+        <!-- Main Workspace Area with Proper Top & Right Margins -->
+        <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh; padding-top: 88px !important;">
             @Body
         </MudMainContent>
     </MudLayout>

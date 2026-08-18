@@ -15,6 +15,13 @@ public sealed class Court
 
     private Court() { }
 
+    public Court(string name, string? city = null)
+    {
+        Name = name;
+        City = city;
+        IsActive = true;
+    }
+
     public Court(int id, string name, string? city = null)
     {
         Id = id;

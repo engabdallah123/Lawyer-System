@@ -15,6 +15,13 @@ public sealed class DocumentType
 
     private DocumentType() { }
 
+    public DocumentType(string name, string? description = null)
+    {
+        Name = name;
+        Description = description;
+        IsActive = true;
+    }
+
     public DocumentType(int id, string name, string? description = null)
     {
         Id = id;

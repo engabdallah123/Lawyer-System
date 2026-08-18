@@ -19,120 +19,134 @@
 @inject ISnackbar Snackbar
 @inject CustomAuthenticationStateProvider AuthStateProvider
 
-<PageTitle>الرئيسية | لوحة القيادة والمتابعة</PageTitle>
+<PageTitle>لوحة القيادة والمتابعة | نظام إدارة مكاتب المحاماة</PageTitle>
 
-<!-- Welcome Header & Quick Action Buttons -->
-<div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
-    <div>
-        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
-            مرحباً بك، @(AuthStateProvider.CurrentUser?.FullName ?? "أستاذ القانون") ⚖️
-        </MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            لوحة القيادة والمتابعة التشغيلية لنظام إدارة مكاتب المحاماة — @DateTime.Now.ToString("dddd، dd MMMM yyyy", new System.Globalization.CultureInfo("ar-EG"))
-        </MudText>
-    </div>
+<!-- Executive Welcome Hero Banner -->
+<div class="hero-banner pa-6 pa-md-8 mb-6">
+    <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4" style="position: relative; z-index: 1;">
+        <div>
+            <div class="d-flex align-center gap-2 mb-2">
+                <MudChip T="string" Size="Size.Small" Style="background: rgba(197, 160, 89, 0.2); color: #d4af37; font-weight: 700; border: 1px solid rgba(197, 160, 89, 0.4);">
+                    <MudIcon Icon="@Icons.Material.Filled.Shield" Size="Size.Small" Class="me-1" /> المنظومة القانونية المتقدمة
+                </MudChip>
+                <MudText Typo="Typo.caption" Style="color: rgba(255, 255, 255, 0.7);">@DateTime.Now.ToString("dddd، d MMMM yyyy")</MudText>
+            </div>
+            <MudText Typo="Typo.h4" Class="fw-extrabold text-white mb-2">
+                أهلاً بك، @(AuthStateProvider.CurrentUser?.FullName ?? "المحامي المستشار")
+            </MudText>
+            <MudText Typo="Typo.body2" Style="color: rgba(255, 255, 255, 0.85); max-width: 680px;">
+                ملخص متابعة العمليات القانونية وحالة القضايا المفتوحة، الجلسات المجدولة اليوم بالمحاكم، والتكاليف العاجلة التي تتطلب اتخاذ إجراء.
+            </MudText>
+        </div>
 
-    <!-- Quick Action Buttons -->
-    <div class="d-flex flex-wrap gap-2">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenNewClientDialog" Size="Size.Small">
-            موكل جديد
-        </MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.AddCircle" OnClick="OpenNewCaseDialog" Size="Size.Small">
-            قضية جديدة
-        </MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CalendarMonth" OnClick="OpenNewHearingDialog" Size="Size.Small">
-            جدولة جلسة
-        </MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Receipt" OnClick="OpenNewInvoiceDialog" Size="Size.Small">
-            إصدار فاتورة
-        </MudButton>
+        <!-- Quick Action Toolbar Buttons -->
+        <div class="d-flex flex-wrap align-center gap-2">
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Gavel" Class="btn-gold-gradient" OnClick="OpenNewCaseDialog">
+                فتح قضية جديدة
+            </MudButton>
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.PersonAdd" Color="Color.Surface" Style="color: #0f172a; font-weight: 700;" OnClick="OpenNewClientDialog">
+                موكل جديد
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Event" Style="color: #ffffff; border-color: rgba(255,255,255,0.4); font-weight: 700;" OnClick="OpenNewHearingDialog">
+                جدولة جلسة
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ReceiptLong" Style="color: #ffffff; border-color: rgba(255,255,255,0.4); font-weight: 700;" OnClick="OpenNewInvoiceDialog">
+                فاتورة أتعاب
+            </MudButton>
+        </div>
     </div>
 </div>
 
-<!-- KPI Cards Grid -->
-<MudGrid Class="mb-6" Spacing="3">
-    <!-- Active Cases -->
+<!-- Key Performance Metrics Cards -->
+<MudGrid Spacing="3" Class="mb-6">
+    <!-- Active Cases Card -->
     <MudItem xs="12" sm="6" md="3">
-        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+        <MudPaper Elevation="0" Class="glass-card stat-card-luxury stat-accent-blue">
             <div class="d-flex justify-space-between align-center">
                 <div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">القضايا النشطة</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-primary">@_activeCasesCount</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Success">
-                        <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Small" /> قيد المتابعة القضائية
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">القضايا والدعاوى النشطة</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-extrabold text-primary mb-1">@_activeCasesCount</MudText>
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Color="Color.Info" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">قضايا قيد الترافع بالمحاكم</MudText>
+                    </div>
                 </div>
-                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Medium" />
-                </MudAvatar>
+                <div class="icon-box-blue shadow-sm">
+                    <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Large" />
+                </div>
             </div>
         </MudPaper>
     </MudItem>
 
-    <!-- Today Hearings -->
+    <!-- Today Hearings Card -->
     <MudItem xs="12" sm="6" md="3">
-        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+        <MudPaper Elevation="0" Class="glass-card stat-card-luxury stat-accent-gold">
             <div class="d-flex justify-space-between align-center">
                 <div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">جلسات اليوم</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-warning">@_todayHearings.Count</MudText>
-                    <MudText Typo="Typo.caption" Color="@(_todayHearings.Count > 0 ? Color.Error : Color.Secondary)">
-                        <MudIcon Icon="@Icons.Material.Filled.NotificationImportant" Size="Size.Small" /> @(_todayHearings.Count > 0 ? "تتطلب الحضور" : "لا توجد جلسات اليوم")
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">جلسات المحاكم اليوم</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-extrabold mb-1" Style="color: #c5a059;">@_todayHearings.Count</MudText>
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.NotificationImportant" Size="Size.Small" Color="@(_todayHearings.Count > 0 ? Color.Error : Color.Secondary)" />
+                        <MudText Typo="Typo.caption" Color="@(_todayHearings.Count > 0 ? Color.Error : Color.Secondary)" Class="fw-bold">
+                            @(_todayHearings.Count > 0 ? "تتطلب الحضور بالمحكمة" : "لا توجد جلسات اليوم")
+                        </MudText>
+                    </div>
                 </div>
-                <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Medium" />
-                </MudAvatar>
+                <div class="icon-box-gold shadow-sm">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Large" />
+                </div>
             </div>
         </MudPaper>
     </MudItem>
 
-    <!-- Clients Count -->
+    <!-- Registered Clients Card -->
     <MudItem xs="12" sm="6" md="3">
-        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+        <MudPaper Elevation="0" Class="glass-card stat-card-luxury stat-accent-emerald">
             <div class="d-flex justify-space-between align-center">
                 <div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">الموكلين المسجلين</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-info">@_clientsCount</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" /> ملفات الموكلين النشطة
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">الموكلين المسجلين</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-extrabold text-success mb-1">@_clientsCount</MudText>
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Color="Color.Success" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">ملفات الموكلين التراكمية</MudText>
+                    </div>
                 </div>
-                <MudAvatar Color="Color.Info" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" Size="Size.Medium" />
-                </MudAvatar>
+                <div class="icon-box-emerald shadow-sm">
+                    <MudIcon Icon="@Icons.Material.Filled.PeopleAlt" Size="Size.Large" />
+                </div>
             </div>
         </MudPaper>
     </MudItem>
 
-    <!-- Pending & Overdue Tasks -->
+    <!-- Overdue & Urgent Tasks Card -->
     <MudItem xs="12" sm="6" md="3">
-        <MudPaper Elevation="0" Class="pa-4 glass-card border">
+        <MudPaper Elevation="0" Class="glass-card stat-card-luxury stat-accent-crimson">
             <div class="d-flex justify-space-between align-center">
                 <div>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">المهام العاجلة والمتأخرة</MudText>
-                    <MudText Typo="Typo.h4" Class="fw-bold my-1 text-error">@_overdueTasks.Count</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Error">
-                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" /> تتطلب المتابعة والإنجاز
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">المهام العاجلة والمتأخرة</MudText>
+                    <MudText Typo="Typo.h4" Class="fw-extrabold text-error mb-1">@_overdueTasks.Count</MudText>
+                    <div class="d-flex align-center gap-1">
+                        <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" Color="Color.Error" />
+                        <MudText Typo="Typo.caption" Color="Color.Error" Class="fw-bold">تستوجب الإنجاز الفوري</MudText>
+                    </div>
                 </div>
-                <MudAvatar Color="Color.Error" Variant="Variant.Filled" Rounded="true" Size="Size.Large">
-                    <MudIcon Icon="@Icons.Material.Filled.ChecklistRtl" Size="Size.Medium" />
-                </MudAvatar>
+                <div class="icon-box-crimson shadow-sm">
+                    <MudIcon Icon="@Icons.Material.Filled.ChecklistRtl" Size="Size.Large" />
+                </div>
             </div>
         </MudPaper>
     </MudItem>
 </MudGrid>
 
-<!-- Content Sections: Hearings & Urgent Tasks -->
+<!-- Main Workspace Grid: Hearings & Urgent Tasks -->
 <MudGrid Spacing="3">
-    <!-- Upcoming Hearings Section -->
+    <!-- Scheduled Court Hearings Section -->
     <MudItem xs="12" md="8">
-        <MudCard Elevation="0" Class="glass-card border h-100">
-            <MudCardHeader>
+        <MudCard Elevation="0" Class="glass-card h-100">
+            <MudCardHeader Class="pb-2">
                 <CardHeaderAvatar>
-                    <MudAvatar Color="Color.Primary" Size="Size.Small">
-                        <MudIcon Icon="@Icons.Material.Filled.EventNote" />
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="shadow-sm">
+                        <MudIcon Icon="@Icons.Material.Filled.EventNote" Style="color: #c5a059;" />
                     </MudAvatar>
                 </CardHeaderAvatar>
                 <CardHeaderContent>
@@ -140,7 +154,7 @@
                     <MudText Typo="Typo.caption" Color="Color.Secondary">المواعيد القادمة بالمحاكم والدوائر القضائية</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="hearings" EndIcon="@Icons.Material.Filled.ArrowBack">
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="hearings" EndIcon="@Icons.Material.Filled.ArrowBack" Class="fw-bold">
                         عرض كافة الجلسات
                     </MudButton>
                 </CardHeaderActions>
@@ -148,8 +162,9 @@
             <MudCardContent Class="pa-0">
                 @if (_hearings.Count == 0)
                 {
-                    <div class="pa-6 text-center">
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">لا توجد جلسات مجدولة حالياً</MudText>
+                    <div class="pa-8 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Size="Size.Large" Color="Color.Secondary" Class="mb-2 opacity-50" />
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="fw-bold">لا توجد جلسات محاكم مجدولة حالياً</MudText>
                     </div>
                 }
                 else
@@ -165,18 +180,18 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="رقم القضية"><span class="fw-bold text-primary">@context.CaseInternalNumber</span></MudTd>
-                            <MudTd DataLabel="الموضوع">@context.CaseTitle</MudTd>
+                            <MudTd DataLabel="الموضوع"><span class="fw-semibold">@context.CaseTitle</span></MudTd>
                             <MudTd DataLabel="المحكمة">@(context.CourtName ?? "-")</MudTd>
                             <MudTd DataLabel="الموعد">
-                                <span class="fw-bold">@context.HearingDate.ToString("MM/dd")</span>
+                                <span class="fw-bold">@context.HearingDate.ToString("yyyy/MM/dd")</span>
                                 @if (context.HearingTime.HasValue)
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Info">@context.HearingTime.Value.ToString(@"hh\:mm")</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Info" Class="d-block">@context.HearingTime.Value.ToString(@"hh\:mm")</MudText>
                                 }
                             </MudTd>
-                            <MudTd DataLabel="النوع"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.HearingType</MudChip></MudTd>
+                            <MudTd DataLabel="النوع"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="fw-bold">@context.HearingType</MudChip></MudTd>
                             <MudTd Style="text-align: center;">
-                                <MudTooltip Text="تسجيل قرار الجلسة">
+                                <MudTooltip Text="تسجيل قرار ونتيجة الجلسة">
                                     <MudIconButton Icon="@Icons.Material.Filled.EditNote" Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenRecordResultDialog(context))" />
                                 </MudTooltip>
                             </MudTd>
@@ -187,47 +202,48 @@
         </MudCard>
     </MudItem>
 
-    <!-- Urgent Tasks Section -->
+    <!-- Urgent Legal Tasks Section -->
     <MudItem xs="12" md="4">
-        <MudCard Elevation="0" Class="glass-card border h-100">
-            <MudCardHeader>
+        <MudCard Elevation="0" Class="glass-card h-100">
+            <MudCardHeader Class="pb-2">
                 <CardHeaderAvatar>
-                    <MudAvatar Color="Color.Warning" Size="Size.Small">
+                    <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Medium" Class="shadow-sm">
                         <MudIcon Icon="@Icons.Material.Filled.AssignmentLate" />
                     </MudAvatar>
                 </CardHeaderAvatar>
                 <CardHeaderContent>
-                    <MudText Typo="Typo.subtitle1" Class="fw-bold">المهام والمتابعات</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">المطلوب إنجازه</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">المهام والمتابعات العاجلة</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">المطلوب إنجازه فورياً</MudText>
                 </CardHeaderContent>
                 <CardHeaderActions>
-                    <MudTooltip Text="مهمة جديدة">
+                    <MudTooltip Text="إضافة مهمة جديدة">
                         <MudIconButton Icon="@Icons.Material.Filled.Add" Size="Size.Small" Color="Color.Primary" OnClick="OpenNewTaskDialog" />
                     </MudTooltip>
                 </CardHeaderActions>
             </MudCardHeader>
-            <MudCardContent Class="pa-2">
+            <MudCardContent Class="pa-3">
                 @if (_overdueTasks.Count == 0)
                 {
-                    <div class="pa-6 text-center">
-                        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" Size="Size.Large" Class="mb-1" />
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">تم إنجاز كافة المهام العاجلة بنجاح!</MudText>
+                    <div class="pa-8 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Success" Size="Size.Large" Class="mb-2" />
+                        <MudText Typo="Typo.subtitle2" Class="fw-bold text-success">رائع! تم إنجاز كافة المهام العاجلة</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">جميع الأعمال القانونية تسير وفق المخطط</MudText>
                     </div>
                 }
                 else
                 {
                     <MudList T="string" Dense="true">
-                        @foreach (var task in _overdueTasks.Take(4))
+                        @foreach (var task in _overdueTasks.Take(5))
                         {
-                            <MudListItem Icon="@Icons.Material.Filled.RadioButtonUnchecked" IconColor="Color.Error">
-                                <div class="d-flex justify-space-between align-center">
-                                    <div>
+                            <MudListItem Icon="@Icons.Material.Filled.RadioButtonUnchecked" IconColor="Color.Error" Class="py-2">
+                                <div class="d-flex justify-space-between align-center w-100">
+                                    <div class="me-2">
                                         <MudText Typo="Typo.body2" Class="fw-bold">@task.Title</MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                                             الاستحقاق: @(task.DueDate?.ToString("yyyy/MM/dd") ?? "غير محدد")
                                         </MudText>
                                     </div>
-                                    <MudTooltip Text="إكمال المهمة">
+                                    <MudTooltip Text="إكمال المهمة فوراً">
                                         <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Size="Size.Small" OnClick="@(() => MarkTaskComplete(task))" />
                                     </MudTooltip>
                                 </div>

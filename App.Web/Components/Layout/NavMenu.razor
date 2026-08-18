@@ -1,28 +1,36 @@
-<div class="pa-4 d-flex align-center gap-3 border-b" style="border-color: var(--mud-palette-divider) !important;">
-    <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Rounded="true" Size="Size.Medium">
-        <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Medium" />
+<div class="nav-header-banner d-flex align-center gap-3">
+    <MudAvatar Variant="Variant.Filled" Size="Size.Medium" Style="background: rgba(197, 160, 89, 0.2); border: 2px solid #c5a059;">
+        <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Medium" Style="color: #d4af37;" />
     </MudAvatar>
     <div>
-        <MudText Typo="Typo.subtitle1" Class="fw-bold lh-sm">مكتب المحاماة</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">الإصدار 1.0 - .NET 10</MudText>
+        <MudText Typo="Typo.subtitle1" Class="fw-bold lh-sm text-white">مكتب المحاماة والخدمات</MudText>
+        <MudText Typo="Typo.caption" Style="color: #c5a059;" Class="fw-bold">النظام القانوني المتقدم v1.0</MudText>
     </div>
 </div>
 
 <MudNavMenu Bordered="false" Rounded="true" Margin="Margin.Dense" Class="pa-2">
+    <MudText Typo="Typo.caption" Class="px-3 pt-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
+        الرئيسية
+    </MudText>
+
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" IconColor="Color.Primary">
-        الرئيسية (لوحة التحكم)
+        لوحة القيادة والمتابعة
     </MudNavLink>
 
+    <MudText Typo="Typo.caption" Class="px-3 pt-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
+        القضايا والعمليات القانونية
+    </MudText>
+
     <MudNavLink Href="clients" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People" IconColor="Color.Info">
-        إدارة الموكلين
+        سجل الموكلين (أفراد / شركات)
     </MudNavLink>
 
     <MudNavLink Href="cases" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Gavel" IconColor="Color.Warning">
-        القضايا والدعاوى
+        ملفات القضايا والدعاوى
     </MudNavLink>
 
     <MudNavLink Href="hearings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth" IconColor="Color.Error">
-        جلسات المحاكم
+        تقويم وجلسات المحاكم
     </MudNavLink>
 
     <MudNavLink Href="consultations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Forum" IconColor="Color.Tertiary">
@@ -30,28 +38,36 @@
     </MudNavLink>
 
     <MudNavLink Href="power-of-attorney" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assignment" IconColor="Color.Secondary">
-        التوكيلات الرسمية
+        التوكيلات والتفويضات
     </MudNavLink>
+
+    <MudText Typo="Typo.caption" Class="px-3 pt-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
+        المالية والأرشيف
+    </MudText>
 
     <MudNavLink Href="finance" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet" IconColor="Color.Success">
         الشؤون المالية والتحصيل
     </MudNavLink>
 
     <MudNavLink Href="documents" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FolderCopy" IconColor="Color.Default">
-        إدارة المستندات والأرشيف
+        الأرشيف والمستندات
     </MudNavLink>
 
     <MudNavLink Href="tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Checklist" IconColor="Color.Info">
-        المهام والمتابعة
+        المهام والمتابعات
     </MudNavLink>
 
     <MudNavLink Href="notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications" IconColor="Color.Warning">
-        مركز التنبيهات
+        مركز الإشعارات والتنبيهات
     </MudNavLink>
 
-    <MudDivider Class="my-2" />
+    <MudDivider Class="my-3" />
+
+    <MudText Typo="Typo.caption" Class="px-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
+        النظام والضبط
+    </MudText>
 
     <MudNavLink Href="users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ManageAccounts" IconColor="Color.Default">
-        المستخدمين والصلاحيات
+        إدارة المستخدمين والصلاحيات
     </MudNavLink>
 </MudNavMenu>

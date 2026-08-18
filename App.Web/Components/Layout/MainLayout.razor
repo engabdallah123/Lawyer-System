@@ -10,99 +10,120 @@
 
 <MudRTLProvider RightToLeft="true">
     <MudLayout>
-    <!-- Top AppBar -->
-    <MudAppBar Elevation="1" Dense="false" Color="Color.Surface" Class="px-4">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-2">
-            <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Primary" Size="Size.Medium" />
-            <MudText Typo="Typo.h6" Class="fw-bold" Color="Color.Primary">نظام إدارة مكاتب المحاماة</MudText>
-        </MudStack>
+        <!-- Top Executive AppBar -->
+        <MudAppBar Elevation="1" Dense="false" Class="px-4 glass-card border-b" Style="backdrop-filter: blur(16px); z-index: 1200;">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Class="me-2" />
+            
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-2">
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="shadow-sm">
+                    <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Medium" Style="color: #c5a059;" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h6" Class="fw-bold lh-sm" Style="letter-spacing: -0.3px;">نظام المحاماة الذكي</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-sm-block">المنظومة المتكاملة لإدارة مكاتب الاستشارات</MudText>
+                </div>
+            </MudStack>
 
-        <MudSpacer />
+            <MudSpacer />
 
-        <!-- Quick Global Search -->
-        <MudTextField T="string" Placeholder="بحث سريع (موكل، قضية، جلسة، مستند...)" Adornment="Adornment.Start" 
-                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
-                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="d-none d-md-flex mx-4" Style="max-width: 380px;" />
+            <!-- Quick Global Search Input Pill -->
+            <MudTextField T="string" Placeholder="بحث شامل (موكل، قضية، جلسة، عقد، مستند...)" Adornment="Adornment.Start" 
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="d-none d-md-flex mx-4 search-input-pill" Style="max-width: 420px; width: 100%;" />
 
-        <!-- Dark/Light Mode Toggle -->
-        <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
-            <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
-                           Color="Color.Inherit" OnClick="@ToggleTheme" />
-        </MudTooltip>
+            <!-- Dark/Light Theme Toggle with Smooth Transition -->
+            <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
+                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
+                               Color="Color.Warning" OnClick="@ToggleTheme" Class="mx-1" />
+            </MudTooltip>
 
-        <!-- Notifications Menu -->
-        <MudBadge Dot="true" Color="Color.Error" Overlap="true" Class="mx-2">
-            <MudMenu Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
-                <MudMenuItem>
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold">جلسة محكمة قادمة</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">الدائرة التجارية الرابعة - غداً 10:00 ص</MudText>
-                </MudMenuItem>
-                <MudDivider />
-                <MudMenuItem>
-                    <MudText Typo="Typo.subtitle2" Class="fw-bold">انتهاء سريان توكيل</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">توكيل الموكل أحمد المنصوري ينتهي خلال 7 أيام</MudText>
-                </MudMenuItem>
-                <MudDivider />
-                <MudMenuItem Class="text-center">
-                    <MudLink Href="/notifications" Typo="Typo.caption" Color="Color.Primary">عرض كافة الإشعارات</MudLink>
-                </MudMenuItem>
-            </MudMenu>
-        </MudBadge>
-
-        <!-- User Profile Avatar & Menu -->
-        @if (AuthStateProvider.IsAuthenticated)
-        {
-            var currentUser = AuthStateProvider.CurrentUser!;
-            <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Class="ms-2">
-                <ActivatorContent>
-                    <MudAvatar Color="Color.Primary" Size="Size.Medium" Style="cursor: pointer;">
-                        @(string.IsNullOrEmpty(currentUser.FullName) ? "U" : currentUser.FullName.Substring(0, 1))
-                    </MudAvatar>
-                </ActivatorContent>
-                <ChildContent>
-                    <div class="px-4 py-2">
-                        <MudText Typo="Typo.subtitle2" Class="fw-bold">@currentUser.FullName</MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">@currentUser.Email</MudText>
-                        <div>
-                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="mt-1">
-                                @AppRoles.GetArabicName(currentUser.Role)
-                            </MudChip>
+            <!-- Notifications Drawer Menu -->
+            <MudBadge Dot="true" Color="Color.Error" Overlap="true" Class="mx-2">
+                <MudMenu Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                    <MudMenuItem Class="py-2 px-3">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Warning" Size="Size.Small" />
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold">جلسة محكمة قادمة</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">الدائرة التجارية الرابعة - غداً 10:00 ص</MudText>
+                            </div>
                         </div>
-                    </div>
-                    <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.People" Href="/users">إدارة المستخدمين والصلاحيات</MudMenuItem>
-                    <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
-                        تسجيل الخروج
                     </MudMenuItem>
-                </ChildContent>
-            </MudMenu>
-        }
-        else
-        {
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Login"
-                       Href="/login"
-                       Class="ms-2">
-                تسجيل الدخول
-            </MudButton>
-        }
-    </MudAppBar>
+                    <MudDivider />
+                    <MudMenuItem Class="py-2 px-3">
+                        <div class="d-flex align-center gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" Size="Size.Small" />
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold">انتهاء سريان توكيل</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">توكيل الموكل أحمد المنصوري ينتهي خلال 7 أيام</MudText>
+                            </div>
+                        </div>
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem Class="text-center py-2">
+                        <MudLink Href="/notifications" Typo="Typo.caption" Color="Color.Primary" Class="fw-bold">عرض كافة الإشعارات والتنبيهات</MudLink>
+                    </MudMenuItem>
+                </MudMenu>
+            </MudBadge>
 
-    <!-- Side Navigation Drawer -->
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false">
-        <NavMenu />
-    </MudDrawer>
+            <!-- User Profile Avatar Dropdown -->
+            @if (AuthStateProvider.IsAuthenticated)
+            {
+                var currentUser = AuthStateProvider.CurrentUser!;
+                <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Class="ms-2">
+                    <ActivatorContent>
+                        <div class="d-flex align-center gap-2 px-2 py-1 rounded-pill surface-hover" style="cursor: pointer;">
+                            <MudAvatar Color="Color.Primary" Size="Size.Medium" Style="border: 2px solid #c5a059;">
+                                @(string.IsNullOrEmpty(currentUser.FullName) ? "U" : currentUser.FullName.Substring(0, 1))
+                            </MudAvatar>
+                            <div class="d-none d-lg-block text-right">
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold lh-sm">@currentUser.FullName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@AppRoles.GetArabicName(currentUser.Role)</MudText>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Color="Color.Secondary" />
+                        </div>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <div class="px-4 py-3 text-center" style="background: rgba(197, 160, 89, 0.08); border-bottom: 1px solid rgba(197, 160, 89, 0.2);">
+                            <MudText Typo="Typo.subtitle2" Class="fw-bold">@currentUser.FullName</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@currentUser.Email</MudText>
+                            <div class="mt-2">
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Style="font-weight: 700;">
+                                    @AppRoles.GetArabicName(currentUser.Role)
+                                </MudChip>
+                            </div>
+                        </div>
+                        <MudMenuItem Icon="@Icons.Material.Filled.ManageAccounts" Href="/users">إدارة المستخدمين والصلاحيات</MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
+                            <span class="text-error fw-bold">تسجيل الخروج</span>
+                        </MudMenuItem>
+                    </ChildContent>
+                </MudMenu>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           Size="Size.Medium"
+                           StartIcon="@Icons.Material.Filled.Login"
+                           Href="/login"
+                           Class="ms-2 btn-gold-gradient">
+                    تسجيل الدخول
+                </MudButton>
+            }
+        </MudAppBar>
 
-    <!-- Main Content Area -->
-    <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh;">
-        @Body
-    </MudMainContent>
-</MudLayout>
+        <!-- Side Navigation Drawer -->
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false" Class="glass-card">
+            <NavMenu />
+        </MudDrawer>
+
+        <!-- Main Workspace Area -->
+        <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh;">
+            @Body
+        </MudMainContent>
+    </MudLayout>
 </MudRTLProvider>
 
 <div id="blazor-error-ui" data-nosnippet>
@@ -146,18 +167,18 @@
     {
         PaletteLight = new PaletteLight()
         {
-            Primary = "#1e3a8a",
+            Primary = "#0f172a",
             PrimaryContrastText = "#ffffff",
-            Secondary = "#b45309",
-            SecondaryContrastText = "#ffffff",
+            Secondary = "#c5a059",
+            SecondaryContrastText = "#0f172a",
             Tertiary = "#047857",
             AppbarBackground = "#ffffff",
-            AppbarText = "#1e293b",
+            AppbarText = "#0f172a",
             Background = "#f8fafc",
             Surface = "#ffffff",
             DrawerBackground = "#ffffff",
-            DrawerText = "#334155",
-            DrawerIcon = "#64748b",
+            DrawerText = "#1e293b",
+            DrawerIcon = "#475569",
             TextPrimary = "#0f172a",
             TextSecondary = "#64748b",
             ActionDefault = "#475569",
@@ -166,27 +187,27 @@
             Success = "#10b981",
             Warning = "#f59e0b",
             Error = "#ef4444",
-            Info = "#3b82f6"
+            Info = "#2563eb"
         },
         PaletteDark = new PaletteDark()
         {
             Primary = "#3b82f6",
             PrimaryContrastText = "#ffffff",
-            Secondary = "#fbbf24",
+            Secondary = "#d4af37",
             SecondaryContrastText = "#0f172a",
             Tertiary = "#34d399",
-            AppbarBackground = "#1e293b",
-            AppbarText = "#f1f5f9",
-            Background = "#0f172a",
-            Surface = "#1e293b",
-            DrawerBackground = "#1e293b",
+            AppbarBackground = "#151d2a",
+            AppbarText = "#f8fafc",
+            Background = "#0b0f19",
+            Surface = "#151d2a",
+            DrawerBackground = "#151d2a",
             DrawerText = "#cbd5e1",
             DrawerIcon = "#94a3b8",
             TextPrimary = "#f8fafc",
             TextSecondary = "#94a3b8",
             ActionDefault = "#cbd5e1",
-            Divider = "#334155",
-            LinesDefault = "#334155",
+            Divider = "rgba(255, 255, 255, 0.08)",
+            LinesDefault = "rgba(255, 255, 255, 0.08)",
             Success = "#34d399",
             Warning = "#fbbf24",
             Error = "#f87171",
@@ -194,8 +215,8 @@
         },
         LayoutProperties = new LayoutProperties()
         {
-            DefaultBorderRadius = "10px",
-            AppbarHeight = "64px",
+            DefaultBorderRadius = "12px",
+            AppbarHeight = "68px",
             DrawerWidthLeft = "280px",
             DrawerWidthRight = "280px"
         },
@@ -206,11 +227,12 @@
                 FontFamily = new[] { "Cairo", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif" },
                 FontSize = ".925rem"
             },
+            H4 = new H4Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "800" },
             H5 = new H5Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "700" },
             H6 = new H6Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "700" },
             Subtitle1 = new Subtitle1Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "600" },
             Subtitle2 = new Subtitle2Typography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "600" },
-            Button = new ButtonTypography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "600" }
+            Button = new ButtonTypography() { FontFamily = new[] { "Cairo", "sans-serif" }, FontWeight = "700" }
         }
     };
 }

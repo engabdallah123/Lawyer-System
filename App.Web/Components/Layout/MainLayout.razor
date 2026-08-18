@@ -3,12 +3,13 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
-<MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" IsRtl="true" />
+<MudThemeProvider Theme="_customTheme" @bind-IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
+<MudRTLProvider RightToLeft="true">
+    <MudLayout>
     <!-- Top AppBar -->
     <MudAppBar Elevation="1" Dense="false" Color="Color.Surface" Class="px-4">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
@@ -102,6 +103,7 @@
         @Body
     </MudMainContent>
 </MudLayout>
+</MudRTLProvider>
 
 <div id="blazor-error-ui" data-nosnippet>
     حدث خطأ غير متوقع في النظام.

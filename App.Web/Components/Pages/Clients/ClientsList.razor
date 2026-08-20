@@ -14,7 +14,7 @@
 <!-- Header & Add Button -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
     <div class="d-flex align-center gap-3">
-        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" Class="shadow-sm">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
             <MudIcon Icon="@Icons.Material.Filled.People" Style="color: #c5a059;" />
         </MudAvatar>
         <div>
@@ -148,7 +148,11 @@
                         @context.CreatedAt.ToString("yyyy/MM/dd")
                     </MudTd>
                     <MudTd Style="text-align: center;">
+
                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomLeft">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Visibility" Href="@($"clients/{context.Id}")">
+                                عرض الملف والمالية
+                            </MudMenuItem>
                             <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenClientDialog(context))">
                                 تعديل البيانات
                             </MudMenuItem>

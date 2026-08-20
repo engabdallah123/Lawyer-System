@@ -1,0 +1,298 @@
+@using global::App.Application.Cases.Commands.UpdateCase
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Lookups.DTOs
+@using global::App.Application.Lookups.Queries.GetCaseStatuses
+@using global::App.Application.Lookups.Queries.GetCaseTypes
+@using global::App.Application.Lookups.Queries.GetCourts
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog Class="glass-card">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                <MudIcon Icon="@Icons.Material.Filled.Edit" Style="color: #c5a059;" />
+            </MudAvatar>
+            <MudText Typo="Typo.h6" Class="fw-extrabold text-primary">
+                تعديل بيانات القضية
+            </MudText>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        @if (_isLoadingLookups)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else
+        {
+            <MudForm @ref="_form" @bind-IsValid="_isValid">
+                <MudGrid Spacing="2" Class="pt-2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_internalNumber"
+                                      Label="الرقم الداخلي"
+                                      ReadOnly="true"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_courtNumber"
+                                      Label="رقم القضية بالمحكمة"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_title"
+                                      Label="موضوع / عنوان القضية *"
+                                      Required="true"
+                                      RequiredError="موضوع القضية مطلوب"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int"
+                                   Label="نوع القضية *"
+                                   @bind-Value="_caseTypeId"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense">
+                            @foreach (var t in _caseTypes)
+                            {
+                                <MudSelectItem Value="@t.Id">@t.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int"
+                                   Label="حالة القضية *"
+                                   @bind-Value="_caseStatusId"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense">
+                            @foreach (var s in _caseStatuses)
+                            {
+                                <MudSelectItem Value="@s.Id">@s.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudSelect T="int?"
+                                   Label="المحكمة المختصة"
+                                   @bind-Value="_courtId"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Clearable="true">
+                            @foreach (var c in _courts)
+                            {
+                                <MudSelectItem Value="@((int?)c.Id)">@c.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_circuit"
+                                      Label="الدائرة القضائية"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_judgeName"
+                                      Label="رئيس الدائرة / القاضي"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField @bind-Value="_claimAmount"
+                                         Label="مبلغ المطالبة (ج.م)"
+                                         Variant="Variant.Outlined"
+                                         Margin="Margin.Dense"
+                                         Format="N2" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTextField @bind-Value="_currentStage"
+                                      Label="المرحلة الحالية"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_description"
+                                      Label="ملخص وقائع الدعوى"
+                                      Lines="2"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_notes"
+                                      Label="ملاحظات إضافية"
+                                      Lines="2"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" />
+                    </MudItem>
+                </MudGrid>
+            </MudForm>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Class="btn-gold-gradient px-4"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving || _isLoadingLookups)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Save" Size="Size.Small" Class="me-1" />
+                <span>حفظ التعديلات</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public CaseDetailsDto CaseItem { get; set; } = default!;
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+    private bool _isLoadingLookups = true;
+
+    private string _internalNumber = string.Empty;
+    private string? _courtNumber;
+    private string _title = string.Empty;
+    private int _caseTypeId;
+    private int _caseStatusId;
+    private int? _courtId;
+    private string? _circuit;
+    private string? _judgeName;
+    private decimal? _claimAmount;
+    private string? _description;
+    private string? _currentStage;
+    private string? _notes;
+
+    private List<LookupDto> _caseTypes = [];
+    private List<LookupDto> _caseStatuses = [];
+    private List<LookupDto> _courts = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CaseItem != null)
+        {
+            _internalNumber = CaseItem.InternalNumber;
+            _courtNumber = CaseItem.CourtNumber;
+            _title = CaseItem.Title;
+            _caseTypeId = CaseItem.CaseTypeId;
+            _caseStatusId = CaseItem.CaseStatusId;
+            _courtId = CaseItem.CourtId;
+            _circuit = CaseItem.Circuit;
+            _judgeName = CaseItem.JudgeName;
+            _claimAmount = CaseItem.ClaimAmount;
+            _description = CaseItem.Description;
+            _currentStage = CaseItem.CurrentStage;
+            _notes = CaseItem.Notes;
+        }
+
+        await LoadLookups();
+    }
+
+    private async Task LoadLookups()
+    {
+        _isLoadingLookups = true;
+        try
+        {
+            var typesTask = Mediator.Send(new GetCaseTypesQuery());
+            var statusesTask = Mediator.Send(new GetCaseStatusesQuery());
+            var courtsTask = Mediator.Send(new GetCourtsQuery());
+
+            await Task.WhenAll(typesTask, statusesTask, courtsTask);
+
+            if (typesTask.Result.IsSuccess && typesTask.Result.Value != null)
+                _caseTypes = typesTask.Result.Value.ToList();
+
+            if (statusesTask.Result.IsSuccess && statusesTask.Result.Value != null)
+                _caseStatuses = statusesTask.Result.Value.ToList();
+
+            if (courtsTask.Result.IsSuccess && courtsTask.Result.Value != null)
+                _courts = courtsTask.Result.Value.ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ في تحميل البيانات: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoadingLookups = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new UpdateCaseCommand(
+                Id: CaseItem.Id,
+                InternalNumber: _internalNumber,
+                CourtNumber: _courtNumber,
+                Title: _title,
+                CaseTypeId: _caseTypeId,
+                CaseStatusId: _caseStatusId,
+                CourtId: _courtId,
+                Circuit: _circuit,
+                JudgeName: _judgeName,
+                ClaimAmount: _claimAmount,
+                Description: _description,
+                CurrentStage: _currentStage,
+                Notes: _notes,
+                UpdatedBy: userName);
+
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تحديث بيانات القضية بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

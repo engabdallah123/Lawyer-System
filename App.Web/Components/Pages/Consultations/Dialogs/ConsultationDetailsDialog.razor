@@ -1,0 +1,408 @@
+@using global::App.Application.Consultations.Commands.CancelConsultation
+@using global::App.Application.Consultations.Commands.CompleteConsultation
+@using global::App.Application.Consultations.Commands.UpdateConsultation
+@using global::App.Application.Consultations.DTOs
+@using global::App.Application.Consultations.Queries.GetConsultationById
+@using global::App.Domain.Consultations.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<MudDialog>
+    <DialogContent>
+        @if (_consultation == null)
+        {
+            <div class="d-flex justify-center align-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <span class="ms-3">جاري تحميل تفاصيل الاستشارة...</span>
+            </div>
+        }
+        else
+        {
+            <!-- Header Summary Card -->
+            <MudCard Elevation="0" Class="border rounded-xl pa-4 mb-4 bg-surface-subtle">
+                <div class="d-flex flex-column flex-md-row justify-space-between align-start align-md-center gap-3">
+                    <div>
+                        <div class="d-flex align-center gap-2 mb-1">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetStatusColor(_consultation.Status)" Class="fw-bold">
+                                @_consultation.StatusName
+                            </MudChip>
+                            <MudText Typo="Typo.h6" Class="fw-extrabold text-primary">@_consultation.Subject</MudText>
+                        </div>
+                        <div class="d-flex flex-wrap align-center gap-3 text-secondary" style="font-size: 0.85rem;">
+                            <span><MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="me-1 align-text-bottom text-primary" /><b>الموكل:</b> @_consultation.ClientName</span>
+                            @if (!string.IsNullOrEmpty(_consultation.ClientPhone))
+                            {
+                                <span><MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Class="me-1 align-text-bottom text-primary" />@_consultation.ClientPhone</span>
+                            }
+                            <span><MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Small" Class="me-1 align-text-bottom text-primary" /><b>الموعد:</b> @_consultation.ConsultationDate.ToString("yyyy/MM/dd")</span>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-column align-end">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">الأتعاب المقدرة</MudText>
+                        <MudText Typo="Typo.h6" Class="fw-extrabold text-success">
+                            @(_consultation.Fee.HasValue ? _consultation.Fee.Value.ToString("N2") + " ج.م" : "غير محددة")
+                        </MudText>
+                    </div>
+                </div>
+            </MudCard>
+
+            @if (!_isEditing)
+            {
+                <!-- View Mode -->
+                <MudGrid Spacing="3">
+                    <!-- Consultation Facts & Questions -->
+                    <MudItem xs="12">
+                        <MudCard Elevation="0" Class="border rounded-xl pa-4">
+                            <div class="d-flex align-center gap-2 mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.QuestionAnswer" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">تفاصيل ووقائع الاستشارة القانونية</MudText>
+                            </div>
+                            <MudDivider Class="mb-3" />
+                            <div class="pa-3 rounded-lg border bg-surface-subtle" style="min-height: 80px; font-size: 0.95rem; white-space: pre-wrap; line-height: 1.6;">
+                                @(string.IsNullOrWhiteSpace(_consultation.Description) ? "لا توجد تفاصيل أو وقائع مسجلة" : _consultation.Description)
+                            </div>
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Legal Opinion & Advice -->
+                    <MudItem xs="12">
+                        <MudCard Elevation="0" Class="border rounded-xl pa-4 stat-accent-gold">
+                            <div class="d-flex align-center gap-2 mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Gavel" Style="color: #c5a059;" />
+                                <MudText Typo="Typo.subtitle1" Class="fw-extrabold" Style="color: #c5a059;">الرأي القانوني والتوجيهات</MudText>
+                            </div>
+                            <MudDivider Class="mb-3" />
+                            <div class="pa-3 rounded-lg border bg-white" style="min-height: 90px; font-size: 0.95rem; white-space: pre-wrap; line-height: 1.6;">
+                                @(string.IsNullOrWhiteSpace(_consultation.Notes) ? "لم يتم تدوين الرأي القانوني النهائي بعد. يمكنك الضغط على 'تعديل / كتابة الرأي' بالأسفل لإضافته." : _consultation.Notes)
+                            </div>
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Metadata footer -->
+                    <MudItem xs="12">
+                        <div class="d-flex justify-space-between align-center text-secondary px-1" style="font-size: 0.8rem;">
+                            <span>تم التسجيل بواسطة: <b>@_consultation.CreatedBy</b></span>
+                            <span>تاريخ الإضافة: @_consultation.CreatedAt.ToString("yyyy/MM/dd hh:mm tt")</span>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+            }
+            else
+            {
+                <!-- Edit Mode -->
+                <MudForm @ref="_form" @bind-IsValid="_isFormValid">
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" md="8">
+                            <MudTextField @bind-Value="_editSubject"
+                                          Label="موضوع الاستشارة *"
+                                          Required="true"
+                                          RequiredError="موضوع الاستشارة مطلوب"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="4">
+                            <MudNumericField @bind-Value="_editFee"
+                                             Label="الأتعاب المقدرة (ج.م)"
+                                             Variant="Variant.Outlined"
+                                             Margin="Margin.Dense"
+                                             Min="0" />
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker Label="تاريخ وموعد الاستشارة *"
+                                           @bind-Date="_editDate"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           DateFormat="yyyy/MM/dd" />
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_editDescription"
+                                          Label="تفاصيل ووقائع الاستشارة"
+                                          Lines="3"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" />
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_editNotes"
+                                          Label="الرأي القانوني والملاحظات"
+                                          Lines="4"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Placeholder="اكتب هنا التكييف القانوني، المشورة، أو الرأي الواجب تقديمه للموكل..." />
+                        </MudItem>
+                    </MudGrid>
+                </MudForm>
+            }
+        }
+    </DialogContent>
+
+    <DialogActions>
+        @if (_consultation != null)
+        {
+            @if (!_isEditing)
+            {
+                <div class="d-flex flex-wrap justify-space-between align-center w-100 gap-2 px-2">
+                    <!-- Status Action Buttons -->
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (_consultation.Status != ConsultationStatus.Completed)
+                        {
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Success"
+                                       StartIcon="@Icons.Material.Filled.CheckCircle"
+                                       OnClick="MarkAsCompleted"
+                                       Disabled="_isProcessing">
+                                تحديد كمكتملة
+                            </MudButton>
+                        }
+
+                        @if (_consultation.Status != ConsultationStatus.Cancelled)
+                        {
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Error"
+                                       StartIcon="@Icons.Material.Filled.Cancel"
+                                       OnClick="MarkAsCancelled"
+                                       Disabled="_isProcessing">
+                                إلغاء الاستشارة
+                            </MudButton>
+                        }
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   OnClick="StartEditing"
+                                   Disabled="_isProcessing">
+                            تعديل / كتابة الرأي
+                        </MudButton>
+                    </div>
+
+                    <MudButton OnClick="Close" Variant="Variant.Text" Color="Color.Default">إغلاق</MudButton>
+                </div>
+            }
+            else
+            {
+                <MudButton OnClick="CancelEditing" Variant="Variant.Text" Disabled="_isProcessing">إلغاء التعديل</MudButton>
+                <MudButton Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="SaveEditing"
+                           Disabled="@(!_isFormValid || _isProcessing)">
+                    @if (_isProcessing)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                        <span>جاري الحفظ...</span>
+                    }
+                    else
+                    {
+                        <span>حفظ التعديلات</span>
+                    }
+                </MudButton>
+            }
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public ConsultationDto? Consultation { get; set; }
+
+    [Parameter]
+    public Guid? ConsultationId { get; set; }
+
+    private ConsultationDto? _consultation;
+    private bool _isEditing = false;
+    private bool _isProcessing = false;
+    private bool _isFormValid = true;
+    private MudForm _form = default!;
+
+    // Edit fields
+    private string _editSubject = string.Empty;
+    private DateTime? _editDate;
+    private decimal? _editFee;
+    private string? _editDescription;
+    private string? _editNotes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Consultation != null)
+        {
+            _consultation = Consultation;
+        }
+        else if (ConsultationId.HasValue)
+        {
+            await LoadConsultation(ConsultationId.Value);
+        }
+    }
+
+    private async Task LoadConsultation(Guid id)
+    {
+        try
+        {
+            var query = new GetConsultationByIdQuery(id);
+            var result = await Mediator.Send(query);
+            if (result.IsSuccess && result.Value != null)
+            {
+                _consultation = result.Value;
+            }
+            else
+            {
+                Snackbar.Add("لم يتم العثور على الاستشارة", Severity.Error);
+                MudDialog.Cancel();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"خطأ أثناء تحميل الاستشارة: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private Color GetStatusColor(ConsultationStatus status) => status switch
+    {
+        ConsultationStatus.Scheduled => Color.Warning,
+        ConsultationStatus.Completed => Color.Success,
+        ConsultationStatus.Cancelled => Color.Error,
+        _ => Color.Default
+    };
+
+    private async Task MarkAsCompleted()
+    {
+        if (_consultation == null) return;
+        _isProcessing = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CompleteConsultationCommand(_consultation.Id, userName);
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم تحديث حالة الاستشارة إلى 'مكتملة' بنجاح", Severity.Success);
+                _consultation = _consultation with
+                {
+                    Status = ConsultationStatus.Completed,
+                    StatusName = "مكتملة"
+                };
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task MarkAsCancelled()
+    {
+        if (_consultation == null) return;
+        _isProcessing = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new CancelConsultationCommand(_consultation.Id, userName);
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم إلغاء الاستشارة بنجاح", Severity.Info);
+                _consultation = _consultation with
+                {
+                    Status = ConsultationStatus.Cancelled,
+                    StatusName = "ملغاة"
+                };
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void StartEditing()
+    {
+        if (_consultation == null) return;
+        _editSubject = _consultation.Subject;
+        _editDate = _consultation.ConsultationDate;
+        _editFee = _consultation.Fee;
+        _editDescription = _consultation.Description;
+        _editNotes = _consultation.Notes;
+        _isEditing = true;
+    }
+
+    private void CancelEditing()
+    {
+        _isEditing = false;
+    }
+
+    private async Task SaveEditing()
+    {
+        if (_consultation == null) return;
+        await _form.ValidateAsync();
+        if (!_isFormValid) return;
+
+        _isProcessing = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new UpdateConsultationCommand(
+                _consultation.Id,
+                _editDate ?? _consultation.ConsultationDate,
+                _editSubject,
+                _editDescription,
+                _editFee,
+                _editNotes,
+                userName);
+
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم حفظ تعديلات الاستشارة والرأي القانوني بنجاح", Severity.Success);
+                _consultation = _consultation with
+                {
+                    Subject = _editSubject,
+                    ConsultationDate = _editDate ?? _consultation.ConsultationDate,
+                    Fee = _editFee,
+                    Description = _editDescription,
+                    Notes = _editNotes
+                };
+                _isEditing = false;
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void Close() => MudDialog.Close(DialogResult.Ok(true));
+}

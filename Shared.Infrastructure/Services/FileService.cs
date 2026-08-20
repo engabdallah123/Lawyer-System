@@ -255,8 +255,8 @@ namespace Shared.Infrastructure.Services // يُفضل نقله للـ Infrastru
 
                 await file.CopyToAsync(fileStream);
 
-                var relativePath = Path.Combine(folder, fileName)
-                    .Replace("\\", "/");
+                var relativePath = "/" + Path.Combine(folder, fileName)
+                    .Replace("\\", "/").TrimStart('/');
 
                 return Result<string>.Success(relativePath);
             }

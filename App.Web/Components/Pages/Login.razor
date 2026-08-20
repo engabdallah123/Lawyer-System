@@ -6,21 +6,26 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
-<PageTitle>تسجيل الدخول | المنظومة القانونية المتقدمة</PageTitle>
+<PageTitle>تسجيل الدخول | مكتب المستشار علاء خالد علام</PageTitle>
 
 <div class="login-bg-container">
-    <MudPaper Elevation="8" Class="pa-6 pa-md-10 login-card rounded-xl" Style="max-width: 480px; width: 100%; position: relative; z-index: 10;">
+    <MudPaper Elevation="8" Class="pa-6 pa-sm-8 pa-md-10 login-card rounded-xl" Style="max-width: 440px; width: 100%; position: relative; z-index: 10;">
+        
         <!-- Header / Logo -->
         <div class="text-center mb-6">
-            <MudAvatar Size="Size.Large" Class="mb-3 shadow-lg" Style="background: linear-gradient(135deg, #c5a059 0%, #d4af37 100%); width: 72px; height: 72px; margin: 0 auto; border: 3px solid rgba(255,255,255,0.2);">
-                <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Large" Style="color: #0f172a;" />
-            </MudAvatar>
-            <MudText Typo="Typo.h5" Class="fw-extrabold text-white mb-1" Style="letter-spacing: -0.5px;">
-                نظام إدارة مكاتب المحاماة
+            <div class="d-inline-block pa-2 rounded-circle mb-3 shadow-md" style="background: rgba(197, 160, 89, 0.12); border: 2px solid #c5a059;">
+                <img src="/Images/logo.png" alt="الشعار الرسمى" style="height: 52px; width: auto; object-fit: contain; display: block;" />
+            </div>
+
+            <MudText Typo="Typo.h6" Class="fw-extrabold mb-1" Style="letter-spacing: -0.3px;">
+                مكتب المستشار / علاء خالد علام
             </MudText>
-            <MudText Typo="Typo.body2" Style="color: #c5a059;" Class="fw-bold">
-                المنظومة الذكية لإدارة القضايا والخدمات القانونية
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">
+                Alaa Khaled Allam — Advocate & Legal Consultant
             </MudText>
+            <MudChip T="string" Size="Size.Small" Style="background: rgba(197, 160, 89, 0.15); color: #c5a059; font-weight: 700;" Class="mt-1">
+                تسجيل الدخول إلى المنظومة
+            </MudChip>
         </div>
 
         @if (!string.IsNullOrEmpty(_errorMessage))
@@ -30,34 +35,30 @@
             </MudAlert>
         }
 
-        <!-- Login Form -->
+        <!-- Clean Direct Login Form -->
         <EditForm Model="@_loginModel" OnValidSubmit="HandleLogin">
             <DataAnnotationsValidator />
 
             <div class="mb-4">
-                <MudText Typo="Typo.caption" Class="fw-bold text-white mb-1 d-block">البريد الإلكتروني</MudText>
                 <MudTextField @bind-Value="_loginModel.Email"
-                              Placeholder="name@lawyer.com"
+                              Label="البريد الإلكتروني"
                               Variant="Variant.Outlined"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Email"
                               Margin="Margin.Dense"
-                              Class="search-input-pill"
                               For="@(() => _loginModel.Email)"
                               Required="true" />
             </div>
 
             <div class="mb-6">
-                <MudText Typo="Typo.caption" Class="fw-bold text-white mb-1 d-block">كلمة المرور</MudText>
                 <MudTextField @bind-Value="_loginModel.Password"
-                              Placeholder="••••••••"
+                              Label="كلمة المرور"
                               Variant="Variant.Outlined"
                               InputType="@_passwordInputType"
                               Adornment="Adornment.End"
                               AdornmentIcon="@_passwordIcon"
                               OnAdornmentClick="TogglePasswordVisibility"
                               Margin="Margin.Dense"
-                              Class="search-input-pill"
                               For="@(() => _loginModel.Password)"
                               Required="true" />
             </div>
@@ -66,7 +67,7 @@
                        Variant="Variant.Filled"
                        FullWidth="true"
                        Size="Size.Large"
-                       Class="py-3 rounded-pill btn-gold-gradient"
+                       Class="py-3 rounded-pill btn-gold-gradient shadow-lg mb-3"
                        Disabled="@_isLoading">
                 @if (_isLoading)
                 {
@@ -80,41 +81,10 @@
             </MudButton>
         </EditForm>
 
-        <MudDivider Class="my-6" Style="border-color: rgba(197, 160, 89, 0.2);" />
-
-        <!-- Quick Demo Accounts -->
-        <div>
-            <MudText Typo="Typo.caption" Style="color: rgba(255, 255, 255, 0.7);" Class="d-block text-center mb-3 fw-bold">
-                حسابات تجريبية سريعة (Click to Fill Credentials)
-            </MudText>
-            <MudStack Spacing="2">
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           Class="rounded-lg"
-                           Style="border-color: rgba(197, 160, 89, 0.4); color: #d4af37; background: rgba(197, 160, 89, 0.08); font-weight: 700;"
-                           StartIcon="@Icons.Material.Filled.AdminPanelSettings"
-                           OnClick="@(() => SetCredentials("admin@lawyer.com", "Admin@123456"))">
-                    مدير النظام (Administrator)
-                </MudButton>
-
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           Class="rounded-lg"
-                           Style="border-color: rgba(37, 99, 235, 0.4); color: #60a5fa; background: rgba(37, 99, 235, 0.08); font-weight: 700;"
-                           StartIcon="@Icons.Material.Filled.Gavel"
-                           OnClick="@(() => SetCredentials("lawyer@lawyer.com", "Lawyer@123456"))">
-                    محامي ومستشار (Lawyer)
-                </MudButton>
-
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           Class="rounded-lg"
-                           Style="border-color: rgba(16, 185, 129, 0.4); color: #34d399; background: rgba(16, 185, 129, 0.08); font-weight: 700;"
-                           StartIcon="@Icons.Material.Filled.Person"
-                           OnClick="@(() => SetCredentials("staff@lawyer.com", "Staff@123456"))">
-                    موظف إداري (Staff)
-                </MudButton>
-            </MudStack>
+        <div class="text-center mt-4">
+            <MudLink Href="/landing" Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold underline-on-hover">
+                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="me-1 align-text-bottom" /> العودة إلى الصفحة الرئيسية
+            </MudLink>
         </div>
     </MudPaper>
 </div>
@@ -141,13 +111,6 @@
             _passwordIcon = Icons.Material.Filled.Visibility;
             _passwordInputType = InputType.Text;
         }
-    }
-
-    private void SetCredentials(string email, string password)
-    {
-        _loginModel.Email = email;
-        _loginModel.Password = password;
-        _errorMessage = null;
     }
 
     private async Task HandleLogin()
@@ -183,9 +146,9 @@
     {
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "البريد الإلكتروني مطلوب")]
         [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "البريد الإلكتروني غير صحيح")]
-        public string Email { get; set; } = "admin@lawyer.com";
+        public string Email { get; set; } = string.Empty;
 
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "كلمة المرور مطلوبة")]
-        public string Password { get; set; } = "Admin@123456";
+        public string Password { get; set; } = string.Empty;
     }
 }

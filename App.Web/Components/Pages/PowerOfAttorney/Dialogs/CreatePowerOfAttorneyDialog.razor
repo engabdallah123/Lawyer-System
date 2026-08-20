@@ -4,8 +4,11 @@
 @using global::App.Application.Clients.Queries.GetClients
 @using global::App.Application.PowerOfAttorney.Commands.CreatePowerOfAttorney
 @using global::App.Domain.Clients.Enums
+@using Microsoft.AspNetCore.Http
+@using Shared.Application.IService
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
+@inject IFileService FileService
 @inject CustomAuthenticationStateProvider AuthStateProvider
 
 <MudDialog>
@@ -77,6 +80,30 @@
                                    Margin="Margin.Dense" />
                 </MudItem>
 
+                <!-- File Upload for Power of Attorney Scan -->
+                <MudItem xs="12">
+                    <MudPaper Outlined="true" Class="pa-3 border-dashed rounded-lg bg-surface-subtle text-center">
+                        <InputFile id="poaFileInput" OnChange="OnFileSelected" class="d-none" accept=".pdf,.jpg,.jpeg,.png" />
+                        <MudButton HtmlTag="label"
+                                   for="poaFileInput"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   Size="Size.Small">
+                            رفع صورة أو ملف التوكيل (PDF / صور)
+                        </MudButton>
+
+                        @if (_selectedBrowserFile != null)
+                        {
+                            <div class="d-flex align-center justify-center gap-2 mt-2">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" />
+                                <MudText Typo="Typo.body2" Class="fw-bold text-success">@_selectedBrowserFile.Name</MudText>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">@FormatFileSize(_selectedBrowserFile.Size)</MudChip>
+                            </div>
+                        }
+                    </MudPaper>
+                </MudItem>
+
                 <!-- Notes -->
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_notes"
@@ -126,6 +153,7 @@
     private DateTime? _expiryDate = DateTime.Today.AddYears(1);
     private string? _notaryName;
     private string? _notes;
+    private IBrowserFile? _selectedBrowserFile;
 
     private List<ClientDto> _clients = [];
     private List<CaseDto> _cases = [];
@@ -160,6 +188,21 @@
         }
     }
 
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File != null)
+        {
+            _selectedBrowserFile = e.File;
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Submit()
@@ -173,6 +216,27 @@
 
         try
         {
+            string? uploadedFilePath = null;
+
+            if (_selectedBrowserFile != null)
+            {
+                using var ms = new MemoryStream();
+                await _selectedBrowserFile.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024).CopyToAsync(ms);
+                ms.Position = 0;
+
+                IFormFile formFile = new FormFile(ms, 0, ms.Length, _selectedBrowserFile.Name, _selectedBrowserFile.Name)
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = string.IsNullOrEmpty(_selectedBrowserFile.ContentType) ? "application/octet-stream" : _selectedBrowserFile.ContentType
+                };
+
+                var uploadResult = await FileService.UploadFileAsync(formFile, "uploads/power-of-attorneys");
+                if (uploadResult.IsSuccess)
+                {
+                    uploadedFilePath = uploadResult.Value;
+                }
+            }
+
             var command = new CreatePowerOfAttorneyCommand(
                 _clientId,
                 _caseId,
@@ -181,14 +245,14 @@
                 _expiryDate,
                 _notaryName,
                 null,
-                null,
+                uploadedFilePath,
                 _notes,
                 userName);
 
             var result = await Mediator.Send(command);
             if (result.IsSuccess)
             {
-                Snackbar.Add("تم تسجيل التوكيل الرسمي بنجاح", Severity.Success);
+                Snackbar.Add("تم تسجيل التوكيل الرسمي ورفع الملف بنجاح", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else

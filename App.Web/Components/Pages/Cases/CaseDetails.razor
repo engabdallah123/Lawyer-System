@@ -1,0 +1,959 @@
+@page "/cases/{Id:guid}"
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCaseById
+@using global::App.Application.Documents.DTOs
+@using global::App.Application.Documents.Queries.GetDocumentsByCase
+@using global::App.Application.Finance.DTOs
+@using global::App.Application.Finance.Queries.GetFeeAgreements
+@using global::App.Application.Finance.Queries.GetInvoices
+@using global::App.Application.Finance.Queries.GetPayments
+@using global::App.Application.Hearings.DTOs
+@using global::App.Application.Hearings.Queries.GetHearingsByCase
+@using global::App.Application.Tasks.Commands.CompleteLegalTask
+@using global::App.Application.Tasks.DTOs
+@using global::App.Application.Tasks.Queries.GetTasksByCase
+@using global::App.Domain.Cases.Enums
+@using global::App.Domain.Tasks.Enums
+@using global::App.Web.Components.Pages.Cases.Dialogs
+@using global::App.Web.Components.Pages.Documents.Dialogs
+@using global::App.Web.Components.Pages.Finance.Dialogs
+@using global::App.Web.Components.Pages.Hearings.Dialogs
+@using global::App.Web.Components.Pages.Tasks.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<PageTitle>@(_case?.Title ?? "تفاصيل القضية") | نظام إدارة مكاتب المحاماة</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="d-flex justify-center align-center pa-12">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+    </div>
+}
+else if (_case is null)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="rounded-xl">
+        عذراً، لم يتم العثور على ملف القضية المطلوب أو قد تم حذفه.
+    </MudAlert>
+}
+else
+{
+    <!-- Master Hero Header -->
+    <div class="hero-banner pa-6 pa-md-8 mb-6">
+        <div style="position: relative; z-index: 1;">
+            <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4">
+                <div>
+                    <div class="d-flex flex-wrap align-center gap-2 mb-2">
+                        <MudChip T="string" Size="Size.Small" Style="background: rgba(197, 160, 89, 0.2); color: #d4af37; font-weight: 700; border: 1px solid rgba(197, 160, 89, 0.4);">
+                            <MudIcon Icon="@Icons.Material.Filled.FolderSpecial" Size="Size.Small" Class="me-1" />
+                            ملف قضية: @_case.InternalNumber
+                        </MudChip>
+
+                        @if (!string.IsNullOrEmpty(_case.CourtNumber))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Variant="Variant.Filled" Class="fw-bold">
+                                🏛️ رقم المحكمة: @_case.CourtNumber
+                            </MudChip>
+                        }
+
+                        <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(_case.CaseStatusName)" Variant="Variant.Filled" Class="fw-bold">
+                            @_case.CaseStatusName
+                        </MudChip>
+
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Style="color: #ffffff; border-color: rgba(255,255,255,0.4);" Class="fw-bold">
+                            نوع: @_case.CaseTypeName
+                        </MudChip>
+
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Style="color: #c5a059;" Class="fw-bold">
+                            المرحلة: @(_case.CurrentStage ?? "قيد النظر")
+                        </MudChip>
+                    </div>
+
+                    <MudText Typo="Typo.h4" Class="fw-extrabold text-white mb-2">
+                        @_case.Title
+                    </MudText>
+
+                    <div class="d-flex flex-wrap align-center gap-4 text-white" style="opacity: 0.9; font-size: 0.9rem;">
+                        <span><MudIcon Icon="@Icons.Material.Filled.AccountBalance" Size="Size.Small" Class="me-1" Style="vertical-align: middle;" /> المحكمة: @(_case.CourtName ?? "غير محددة")</span>
+                        <span><MudIcon Icon="@Icons.Material.Filled.MeetingRoom" Size="Size.Small" Class="me-1" Style="vertical-align: middle;" /> الدائرة: @(_case.Circuit ?? "-")</span>
+                        <span><MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="me-1" Style="vertical-align: middle;" /> تاريخ الفتح: @_case.OpenDate.ToString("yyyy/MM/dd")</span>
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="d-flex flex-wrap align-center gap-2 self-stretch self-md-auto">
+                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.EventAvailable" Color="Color.Warning" Class="fw-bold shadow-md px-4 py-2" OnClick="OpenNewHearingDialog">
+                        جدولة جلسة
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.UploadFile" Color="Color.Primary" Class="fw-bold shadow-md px-4 py-2" OnClick="OpenUploadDocDialog">
+                        رفع مستند
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Timeline" Style="color: #ffffff; border-color: rgba(255,255,255,0.4); font-weight: 700;" Class="px-4 py-2" OnClick="OpenNewTimelineDialog">
+                        توثيق إجراء
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" Style="color: #ffffff; border-color: rgba(255,255,255,0.4); font-weight: 700;" Class="px-4 py-2" OnClick="OpenEditCaseDialog">
+                        تعديل البيانات
+                    </MudButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4 KPI Metrics Row -->
+    <MudGrid Spacing="3" Class="mb-6">
+        <!-- 1. Claim Amount -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">قيمة المطالبة المالية</MudText>
+                        <MudText Typo="Typo.h5" Class="fw-extrabold text-primary">
+                            @(_case.ClaimAmount.HasValue ? _case.ClaimAmount.Value.ToString("N0") + " ج.م" : "غير محددة")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">المبلغ المتنازع عليه</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@Icons.Material.Filled.Gavel" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+
+        <!-- 2. Total Agreed Fees -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">إجمالي الأتعاب التعاقدية</MudText>
+                        <MudText Typo="Typo.h5" Class="fw-extrabold text-primary">@_case.TotalFees.ToString("N0") ج.م</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">عقود وفواتير الأتعاب</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+
+        <!-- 3. Paid Fees -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">المسدد والمحصل</MudText>
+                        <MudText Typo="Typo.h5" Class="fw-extrabold text-success">@_case.PaidFees.ToString("N0") ج.م</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Success">سندات القبض المسجلة</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+
+        <!-- 4. Remaining Balance -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">المتبقي قيد التحصيل</MudText>
+                        <MudText Typo="Typo.h5" Class="@($"fw-extrabold {(_case.RemainingFees > 0 ? "text-error" : "text-success")}")">
+                            @_case.RemainingFees.ToString("N0") ج.م
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="@(_case.RemainingFees > 0 ? Color.Error : Color.Success)" Class="fw-bold">
+                            @(_case.RemainingFees > 0 ? "مستحقات واجبة السداد" : "تم سداد الأتعاب كاملة")
+                        </MudText>
+                    </div>
+                    <MudAvatar Color="@(_case.RemainingFees > 0 ? Color.Error : Color.Success)" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@(_case.RemainingFees > 0 ? Icons.Material.Filled.PendingActions : Icons.Material.Filled.Verified)" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Main Navigation Tabs -->
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" Class="glass-card border pa-3 pa-md-4">
+
+        <!-- ========================================================= -->
+        <!-- Tab 1: نظرة عامة وبيانات التقاضي -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="نظرة عامة والتقاضي" Icon="@Icons.Material.Filled.Info">
+            <MudGrid Spacing="3" Class="pt-4">
+                <!-- Litigation Info Card -->
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="0" Class="border rounded-xl pa-4 h-100">
+                        <div class="d-flex align-center gap-2 mb-3">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Primary" />
+                            <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">بيانات المحكمة والتقاضي</MudText>
+                        </div>
+                        <MudDivider Class="mb-3" />
+
+                        <div class="d-flex flex-column gap-3">
+                            <div class="d-flex justify-space-between align-center">
+                                <span class="text-secondary fw-bold">المحكمة المختصة:</span>
+                                <span class="fw-bold">@(_case.CourtName ?? "غير محددة")</span>
+                            </div>
+                            <div class="d-flex justify-space-between align-center">
+                                <span class="text-secondary fw-bold">الدائرة القضائية:</span>
+                                <span class="fw-bold">@(_case.Circuit ?? "-")</span>
+                            </div>
+                            <div class="d-flex justify-space-between align-center">
+                                <span class="text-secondary fw-bold">رئيس الدائرة / القاضي:</span>
+                                <span class="fw-bold">@(_case.JudgeName ?? "-")</span>
+                            </div>
+                            <div class="d-flex justify-space-between align-center">
+                                <span class="text-secondary fw-bold">المرحلة الحالية:</span>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Info" Class="fw-bold">
+                                    @(_case.CurrentStage ?? "قيد النظر")
+                                </MudChip>
+                            </div>
+                            <div class="d-flex justify-space-between align-center">
+                                <span class="text-secondary fw-bold">تاريخ فتح الملف:</span>
+                                <span class="fw-bold">@_case.OpenDate.ToString("yyyy/MM/dd")</span>
+                            </div>
+                            @if (_case.CloseDate.HasValue)
+                            {
+                                <div class="d-flex justify-space-between align-center">
+                                    <span class="text-secondary fw-bold">تاريخ إغلاق الملف:</span>
+                                    <span class="fw-bold text-error">@_case.CloseDate.Value.ToString("yyyy/MM/dd")</span>
+                                </div>
+                            }
+                        </div>
+                    </MudCard>
+                </MudItem>
+
+                <!-- Assigned Lawyers & Case Description Card -->
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="0" Class="border rounded-xl pa-4 h-100 d-flex flex-column">
+                        <div class="d-flex justify-space-between align-center mb-3">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Badge" Color="Color.Primary" />
+                                <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">المحامين المكلفين بالملف</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenAssignLawyerDialog" Class="fw-bold">
+                                إسناد محامي
+                            </MudButton>
+                        </div>
+                        <MudDivider Class="mb-3" />
+
+                        @if (!_case.Assignments.Any())
+                        {
+                            <div class="pa-4 text-center border rounded-lg bg-surface-subtle mb-3">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">لم يتم إسناد محامين لهذا الملف حتى الآن</MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            <MudList T="string" Dense="true" Class="mb-3">
+                                @foreach (var assign in _case.Assignments)
+                                {
+                                    <MudListItem Icon="@Icons.Material.Filled.Person">
+                                        <div class="d-flex justify-space-between align-center">
+                                            <div>
+                                                <span class="fw-bold">@assign.LawyerName</span>
+                                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="ms-2">@assign.RoleInCase</MudChip>
+                                            </div>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">منذ: @assign.AssignedDate.ToString("yyyy/MM/dd")</MudText>
+                                        </div>
+                                    </MudListItem>
+                                }
+                            </MudList>
+                        }
+
+                        <div class="mt-auto">
+                            <MudText Typo="Typo.subtitle2" Class="fw-bold text-secondary mb-1">وصف ووقائع الدعوى:</MudText>
+                            <div class="pa-3 rounded-lg border bg-surface-subtle" style="min-height: 80px; font-size: 0.9rem;">
+                                @(string.IsNullOrEmpty(_case.Description) ? "لا يوجد وصف مسجل" : _case.Description)
+                            </div>
+                        </div>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <!-- ========================================================= -->
+        <!-- Tab 2: أطراف الدعوى والخصوم -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="أطراف الدعوى والخصوم" Icon="@Icons.Material.Filled.Groups" BadgeData="@_case.Parties.Count()" BadgeColor="Color.Primary">
+            <div class="d-flex justify-space-between align-center pt-4 mb-4">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">قائمة أطراف النزاع والخصومة</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">الموكلين والخصوم وبيانات التواصل ومحامي الأطراف</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenAddPartyDialog" Class="rounded-pill px-4">
+                    إضافة طرف جديد
+                </MudButton>
+            </div>
+
+            @if (!_case.Parties.Any())
+            {
+                <div class="pa-8 text-center border rounded-xl bg-surface-subtle">
+                    <MudIcon Icon="@Icons.Material.Filled.GroupOff" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">لا يوجد أطراف مسجلين بعد</MudText>
+                </div>
+            }
+            else
+            {
+                <MudGrid Spacing="3">
+                    @foreach (var party in _case.Parties)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudCard Elevation="0" Class="@($"border rounded-xl pa-4 {(party.IsMainClient ? "stat-accent-gold" : "bg-surface-subtle")}")">
+                                <div class="d-flex justify-space-between align-start mb-2">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudAvatar Color="@(party.IsMainClient ? Color.Warning : Color.Primary)" Variant="Variant.Filled" Size="Size.Small">
+                                            <MudIcon Icon="@(party.PartyType == "Company" ? Icons.Material.Filled.Business : Icons.Material.Filled.Person)" Size="Size.Small" />
+                                        </MudAvatar>
+                                        <div>
+                                            <MudText Typo="Typo.subtitle1" Class="fw-extrabold">
+                                                @(party.ClientName ?? party.PartyName)
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                @(party.PartyType == "Company" ? "شركة / جهة اعتبارية" : "شخص طبيعي / فرد")
+                                            </MudText>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-center gap-1">
+                                        @if (party.IsMainClient)
+                                        {
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="fw-bold">
+                                                ⭐ الموكل الأساسي
+                                            </MudChip>
+                                        }
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="fw-bold">
+                                            @party.PartyRoleName
+                                        </MudChip>
+                                    </div>
+                                </div>
+                                <MudDivider Class="my-2" />
+
+                                <div class="d-flex flex-column gap-2" style="font-size: 0.88rem;">
+                                    @if (!string.IsNullOrEmpty(party.Phone))
+                                    {
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Color="Color.Secondary" />
+                                            <span>الهاتف: @party.Phone</span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(party.Email))
+                                    {
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Email" Size="Size.Small" Color="Color.Secondary" />
+                                            <span>البريد: @party.Email</span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(party.Address))
+                                    {
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Secondary" />
+                                            <span>العنوان: @party.Address</span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(party.LawyerName))
+                                    {
+                                        <div class="pa-2 rounded-lg border mt-1" style="background: rgba(37, 99, 235, 0.05);">
+                                            <div class="d-flex align-center gap-2 text-primary fw-bold">
+                                                <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Small" />
+                                                <span>محامي الخصم: @party.LawyerName</span>
+                                                @if (!string.IsNullOrEmpty(party.LawyerPhone))
+                                                {
+                                                    <span class="text-secondary ms-auto">(@party.LawyerPhone)</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudTabPanel>
+
+        <!-- ========================================================= -->
+        <!-- Tab 3: الجلسات القضائية -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="سجل الجلسات" Icon="@Icons.Material.Filled.Event" BadgeData="@_hearings.Count" BadgeColor="Color.Warning">
+            <div class="d-flex justify-space-between align-center pt-4 mb-4">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">جلسات المحكمة المجدولة والسابقة</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">سجل الحضور والقرارات والنتائج</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewHearingDialog" Class="rounded-pill px-4 fw-bold">
+                    جدولة جلسة جديدة
+                </MudButton>
+            </div>
+
+            @if (_hearings.Count == 0)
+            {
+                <div class="pa-8 text-center border rounded-xl bg-surface-subtle">
+                    <MudIcon Icon="@Icons.Material.Filled.EventBusy" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">لا توجد جلسات مجدولة لهذه القضية</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTable Items="@_hearings" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="border rounded-xl">
+                    <HeaderContent>
+                        <MudTh>تاريخ الجلسة</MudTh>
+                        <MudTh>الوقت</MudTh>
+                        <MudTh>نوع الجلسة</MudTh>
+                        <MudTh>القرار والنتيجة</MudTh>
+                        <MudTh>الجلسة القادمة</MudTh>
+                        <MudTh Style="text-align: center;">الإجراء</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="التاريخ"><span class="fw-bold text-primary">@context.HearingDate.ToString("yyyy/MM/dd")</span></MudTd>
+                        <MudTd DataLabel="الوقت">@(context.HearingTime.HasValue ? context.HearingTime.Value.ToString(@"hh\:mm") : "-")</MudTd>
+                        <MudTd DataLabel="النوع"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">@context.HearingType</MudChip></MudTd>
+                        <MudTd DataLabel="النتيجة">
+                            @if (!string.IsNullOrEmpty(context.Result))
+                            {
+                                <span class="fw-bold text-success">@context.Result</span>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">قيد الانتظار</span>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="القادمة">@(context.NextHearingDate?.ToString("yyyy/MM/dd") ?? "-")</MudTd>
+                        <MudTd Style="text-align: center;">
+                            <MudTooltip Text="توثيق قرار ونتيجة الجلسة">
+                                <MudIconButton Icon="@Icons.Material.Filled.EditNote" Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenRecordResultDialog(context))" />
+                            </MudTooltip>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+
+        <!-- ========================================================= -->
+        <!-- Tab 4: السجل والمسار الزمني -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="الجدول الزمني" Icon="@Icons.Material.Filled.Timeline" BadgeData="@_case.Timelines.Count()" BadgeColor="Color.Info">
+            <div class="d-flex justify-space-between align-center pt-4 mb-4">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">المسار الزمني والأحداث التشغيلية</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">سجل توثيق كافة المحطات والوقائع</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewTimelineDialog" Class="rounded-pill px-4">
+                    إضافة حدث جديد
+                </MudButton>
+            </div>
+
+            @if (!_case.Timelines.Any())
+            {
+                <div class="pa-8 text-center border rounded-xl bg-surface-subtle">
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">لا توجد محطات مسجلة في الجدول الزمني</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTimeline TimelineOrientation="TimelineOrientation.Vertical" TimelinePosition="TimelinePosition.Start">
+                    @foreach (var entry in _case.Timelines)
+                    {
+                        <MudTimelineItem Color="@(entry.IsImportant ? Color.Warning : Color.Primary)" Size="Size.Small">
+                            <ItemContent>
+                                <MudCard Elevation="0" Class="@($"border rounded-xl pa-3 {(entry.IsImportant ? "stat-accent-gold" : "bg-surface-subtle")}")">
+                                    <div class="d-flex justify-space-between align-center mb-1">
+                                        <span class="fw-bold text-primary">@entry.Title</span>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">@entry.CreatedAt.ToString("yyyy/MM/dd hh:mm tt")</MudText>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(entry.Description))
+                                    {
+                                        <MudText Typo="Typo.body2" Class="mb-1">@entry.Description</MudText>
+                                    }
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">بواسطة: @entry.CreatedBy</MudText>
+                                </MudCard>
+                            </ItemContent>
+                        </MudTimelineItem>
+                    }
+                </MudTimeline>
+            }
+        </MudTabPanel>
+
+        <!-- ========================================================= -->
+        <!-- Tab 5: المستندات والوثائق -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="المستندات والوثائق" Icon="@Icons.Material.Filled.Description" BadgeData="@_documents.Count" BadgeColor="Color.Primary">
+            <div class="d-flex justify-space-between align-center pt-4 mb-4">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">المستندات، المذكرات، ومرفقات القضية</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">إدارة ومتابعة نسخ المستندات القانونية</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="OpenUploadDocDialog" Class="rounded-pill px-4">
+                    رفع مستند
+                </MudButton>
+            </div>
+
+            @if (_documents.Count == 0)
+            {
+                <div class="pa-8 text-center border rounded-xl bg-surface-subtle">
+                    <MudIcon Icon="@Icons.Material.Filled.FolderOff" Size="Size.Large" Color="Color.Secondary" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold">لا توجد مستندات مرفوعة لهذه القضية</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTable Items="@_documents" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="border rounded-xl">
+                    <HeaderContent>
+                        <MudTh>اسم المستند</MudTh>
+                        <MudTh>نوع المستند</MudTh>
+                        <MudTh>النسخة</MudTh>
+                        <MudTh>تاريخ الرفع</MudTh>
+                        <MudTh>المستخدم</MudTh>
+                        <MudTh Style="text-align: center;">الإجراء</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="الاسم"><span class="fw-bold text-primary">@context.Name</span></MudTd>
+                        <MudTd DataLabel="النوع">@(context.DocumentTypeName ?? "مستند عام")</MudTd>
+                        <MudTd DataLabel="النسخة"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">v@(context.CurrentVersionNumber > 0 ? context.CurrentVersionNumber : 1)</MudChip></MudTd>
+                        <MudTd DataLabel="التاريخ">@context.CreatedAt.ToString("yyyy/MM/dd")</MudTd>
+                        <MudTd DataLabel="المستخدم">@context.CreatedBy</MudTd>
+                        <MudTd Style="text-align: center;">
+                            @if (!string.IsNullOrEmpty(context.CurrentFilePath))
+                            {
+                                <MudTooltip Text="تحميل المستند">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary" Href="@context.CurrentFilePath" Target="_blank" />
+                                </MudTooltip>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+
+        <!-- ========================================================= -->
+        <!-- Tab 6: المهام والتكاليف -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="المهام والمتابعات" Icon="@Icons.Material.Filled.ChecklistRtl" BadgeData="@_tasks.Count" BadgeColor="Color.Warning">
+            <div class="d-flex justify-space-between align-center pt-4 mb-4">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">المهام والتكليفات المرتبطة بالقضية</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">متابعة إنجاز الأعمال القانونية</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewTaskDialog" Class="rounded-pill px-4">
+                    تكليف مهمة جديدة
+                </MudButton>
+            </div>
+
+            @if (_tasks.Count == 0)
+            {
+                <div class="pa-8 text-center border rounded-xl bg-surface-subtle">
+                    <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Size="Size.Large" Color="Color.Success" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1" Class="fw-bold text-success">لا توجد مهام معلقة لهذه القضية</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTable Items="@_tasks" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="border rounded-xl">
+                    <HeaderContent>
+                        <MudTh>عنوان المهمة</MudTh>
+                        <MudTh>المكلف بها</MudTh>
+                        <MudTh>الأولوية</MudTh>
+                        <MudTh>تاريخ الاستحقاق</MudTh>
+                        <MudTh>الحالة</MudTh>
+                        <MudTh Style="text-align: center;">الإجراء</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="العنوان">
+                            <span class="fw-bold text-primary">@context.Title</span>
+                            @if (!string.IsNullOrEmpty(context.Description))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">@context.Description</MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="المكلف">@context.AssignedToUserId</MudTd>
+                        <MudTd DataLabel="الأولوية">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(context.Priority == global::App.Domain.Tasks.Enums.TaskPriority.Urgent ? Color.Error : Color.Warning)" Class="fw-bold">
+                                @context.PriorityName
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="الاستحقاق">@(context.DueDate?.ToString("yyyy/MM/dd") ?? "غير محدد")</MudTd>
+                        <MudTd DataLabel="الحالة">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(context.Status == global::App.Domain.Tasks.Enums.LegalTaskStatus.Completed ? Color.Success : Color.Secondary)">
+                                @context.StatusName
+                            </MudChip>
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            @if (context.Status != global::App.Domain.Tasks.Enums.LegalTaskStatus.Completed)
+                            {
+                                <MudTooltip Text="إكمال المهمة">
+                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Size="Size.Small" OnClick="@(() => MarkTaskComplete(context))" />
+                                </MudTooltip>
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+
+        <!-- ========================================================= -->
+        <!-- Tab 7: الحسابات والتعاقدات المالية -->
+        <!-- ========================================================= -->
+        <MudTabPanel Text="المالية والتعاقدات" Icon="@Icons.Material.Filled.AccountBalanceWallet">
+            <div class="d-flex justify-space-between align-center pt-4 mb-4">
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary">العقود، الفواتير، وسندات القبض</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">المعاملات المالية والمستحقات المرتبطة بملف القضية</MudText>
+                </div>
+                <div class="d-flex gap-2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Payments" OnClick="@(() => OpenNewPaymentDialog())" Class="rounded-pill px-3">
+                        سند قبض
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Receipt" OnClick="OpenNewInvoiceDialog" Class="rounded-pill px-3">
+                        فاتورة أتعاب
+                    </MudButton>
+                </div>
+            </div>
+
+            <!-- 1. Fee Agreements Table -->
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary mb-2">1. عقود واتفاقيات الأتعاب:</MudText>
+            @if (_feeAgreements.Count == 0)
+            {
+                <div class="pa-4 text-center border rounded-lg bg-surface-subtle mb-4">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">لا توجد عقود أتعاب مسجلة لهذه القضية</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTable Items="@_feeAgreements" Dense="true" Hover="true" Elevation="0" Class="border rounded-xl mb-4">
+                    <HeaderContent>
+                        <MudTh>نوع الاتفاق</MudTh>
+                        <MudTh>إجمالي المبلغ</MudTh>
+                        <MudTh>المسدد</MudTh>
+                        <MudTh>المتبقي</MudTh>
+                        <MudTh>تاريخ البدء</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="النوع"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">@context.AgreementType.ToString()</MudChip></MudTd>
+                        <MudTd DataLabel="الإجمالي"><span class="fw-bold text-primary">@context.TotalAmount.ToString("N0") ج.م</span></MudTd>
+                        <MudTd DataLabel="المسدد"><span class="fw-bold text-success">@context.PaidAmount.ToString("N0") ج.م</span></MudTd>
+                        <MudTd DataLabel="المتبقي"><span class="fw-bold @(context.TotalAmount - context.PaidAmount > 0 ? "text-error" : "text-success")">@((context.TotalAmount - context.PaidAmount).ToString("N0")) ج.م</span></MudTd>
+                        <MudTd DataLabel="البدء">@context.StartDate.ToString("yyyy/MM/dd")</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+            <!-- 2. Invoices Table -->
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary mb-2">2. الفواتير الصادرة المرتبطة بالقضية:</MudText>
+            @if (_invoices.Count == 0)
+            {
+                <div class="pa-4 text-center border rounded-lg bg-surface-subtle mb-4">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">لا توجد فواتير صادرة لهذه القضية</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTable Items="@_invoices" Dense="true" Hover="true" Elevation="0" Class="border rounded-xl mb-4">
+                    <HeaderContent>
+                        <MudTh>رقم الفاتورة</MudTh>
+                        <MudTh>تاريخ الإصدار</MudTh>
+                        <MudTh>الإجمالي</MudTh>
+                        <MudTh>المسدد</MudTh>
+                        <MudTh>المتبقي</MudTh>
+                        <MudTh>الحالة</MudTh>
+                        <MudTh Style="text-align: center;">الإجراء</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="رقم الفاتورة"><span class="fw-bold text-primary">#@context.InvoiceNumber</span></MudTd>
+                        <MudTd DataLabel="تاريخ الإصدار">@context.IssueDate.ToString("yyyy/MM/dd")</MudTd>
+                        <MudTd DataLabel="الإجمالي"><span class="fw-bold text-primary">@context.TotalAmount.ToString("N0") ج.م</span></MudTd>
+                        <MudTd DataLabel="المسدد"><span class="fw-bold text-success">@context.PaidAmount.ToString("N0") ج.م</span></MudTd>
+                        <MudTd DataLabel="المتبقي"><span class="fw-bold @(context.RemainingAmount > 0 ? "text-error" : "text-success")">@context.RemainingAmount.ToString("N0") ج.م</span></MudTd>
+                        <MudTd DataLabel="الحالة">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@(context.Status == global::App.Domain.Finance.Enums.InvoiceStatus.Paid ? Color.Success : (context.Status == global::App.Domain.Finance.Enums.InvoiceStatus.PartiallyPaid ? Color.Warning : Color.Info))">
+                                @context.StatusName
+                            </MudChip>
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            <div class="d-flex justify-center align-center gap-1">
+                                <MudTooltip Text="طباعة / تحميل الفاتورة PDF">
+                                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Primary" Size="Size.Small" Href="@($"/api/invoices/{context.Id}/pdf")" Target="_blank" />
+                                </MudTooltip>
+                                @if (context.RemainingAmount > 0)
+                                {
+                                    <MudButton Variant="Variant.Text" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Payments" OnClick="@(() => OpenNewPaymentDialog(invoiceId: context.Id))" Class="fw-bold">
+                                        سداد
+                                    </MudButton>
+                                }
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+            <!-- 3. Payments Table -->
+            <MudText Typo="Typo.subtitle2" Class="fw-bold text-primary mb-2">3. سجل سندات القبض والدفعات المحصلة:</MudText>
+            @if (_payments.Count == 0)
+            {
+                <div class="pa-4 text-center border rounded-lg bg-surface-subtle">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">لا توجد مدفوعات مسجلة لهذه القضية بعد</MudText>
+                </div>
+            }
+            else
+            {
+                <MudTable Items="@_payments" Dense="true" Hover="true" Elevation="0" Class="border rounded-xl">
+                    <HeaderContent>
+                        <MudTh>تاريخ السند</MudTh>
+                        <MudTh>المبلغ المحصل</MudTh>
+                        <MudTh>طريقة الدفع</MudTh>
+                        <MudTh>رقم المرجع / الإيصال</MudTh>
+                        <MudTh>المستلم</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="التاريخ">@context.PaymentDate.ToString("yyyy/MM/dd")</MudTd>
+                        <MudTd DataLabel="المبلغ"><span class="fw-bold text-success">@context.Amount.ToString("N0") ج.م</span></MudTd>
+                        <MudTd DataLabel="طريقة الدفع"><MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="Color.Secondary">@context.PaymentMethod</MudChip></MudTd>
+                        <MudTd DataLabel="المرجع">@(context.ReferenceNumber ?? "-")</MudTd>
+                        <MudTd DataLabel="المستلم">@context.ReceivedBy</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudTabPanel>
+
+    </MudTabs>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private CaseDetailsDto? _case;
+    private List<HearingDto> _hearings = [];
+    private List<LegalTaskDto> _tasks = [];
+    private List<DocumentDto> _documents = [];
+    private List<FeeAgreementDto> _feeAgreements = [];
+    private List<InvoiceDto> _invoices = [];
+    private List<PaymentDto> _payments = [];
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCaseData();
+    }
+
+    private async Task LoadCaseData()
+    {
+        _isLoading = true;
+        try
+        {
+            var caseResult = await Mediator.Send(new GetCaseByIdQuery(Id));
+            if (caseResult.IsSuccess && caseResult.Value != null)
+            {
+                _case = caseResult.Value;
+
+                var hearingsTask = Mediator.Send(new GetHearingsByCaseQuery(Id));
+                var tasksTask = Mediator.Send(new GetTasksByCaseQuery(Id));
+                var docsTask = Mediator.Send(new GetDocumentsByCaseQuery(Id));
+                var agreementsTask = Mediator.Send(new GetFeeAgreementsQuery(CaseId: Id));
+                var invoicesTask = Mediator.Send(new GetInvoicesQuery(CaseId: Id));
+                var paymentsTask = Mediator.Send(new GetPaymentsQuery(CaseId: Id));
+
+                await Task.WhenAll(hearingsTask, tasksTask, docsTask, agreementsTask, invoicesTask, paymentsTask);
+
+                if (hearingsTask.Result.IsSuccess && hearingsTask.Result.Value != null)
+                    _hearings = hearingsTask.Result.Value.ToList();
+
+                if (tasksTask.Result.IsSuccess && tasksTask.Result.Value != null)
+                    _tasks = tasksTask.Result.Value.ToList();
+
+                if (docsTask.Result.IsSuccess && docsTask.Result.Value != null)
+                    _documents = docsTask.Result.Value.ToList();
+
+                if (agreementsTask.Result.IsSuccess && agreementsTask.Result.Value != null)
+                    _feeAgreements = agreementsTask.Result.Value.ToList();
+
+                if (invoicesTask.Result.IsSuccess && invoicesTask.Result.Value != null)
+                    _invoices = invoicesTask.Result.Value.ToList();
+
+                if (paymentsTask.Result.IsSuccess && paymentsTask.Result.Value != null)
+                    _payments = paymentsTask.Result.Value.ToList();
+            }
+            else
+            {
+                Snackbar.Add("لم يتم العثور على القضية المطلوبة", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل بيانات القضية: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetStatusColor(string statusName) => statusName switch
+    {
+        "قيد التداول" or "نشطة" => Color.Primary,
+        "محكوم فيها" or "منتهية" or "مغلقة" => Color.Success,
+        "مشطوبة" or "ملغاة" => Color.Error,
+        "مؤجلة" => Color.Warning,
+        _ => Color.Info
+    };
+
+    // Dialog Launchers
+    private async Task OpenNewHearingDialog()
+    {
+        if (_case is null) return;
+        var parameters = new DialogParameters { ["DefaultCaseId"] = _case.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateHearingDialog>("جدولة جلسة بالمحكمة", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenRecordResultDialog(HearingDto hearing)
+    {
+        var parameters = new DialogParameters { ["HearingItem"] = hearing };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<RecordHearingResultDialog>("توثيق نتيجة وقرار الجلسة", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenUploadDocDialog()
+    {
+        if (_case is null) return;
+        var parameters = new DialogParameters { ["DefaultCaseId"] = _case.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UploadDocumentDialog>("رفع مستند أو وثيقة للقضية", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenNewTaskDialog()
+    {
+        if (_case is null) return;
+        var parameters = new DialogParameters { ["DefaultCaseId"] = _case.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateTaskDialog>("تكليف مهمة جديدة للقضية", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenNewTimelineDialog()
+    {
+        if (_case is null) return;
+        var parameters = new DialogParameters { ["CaseId"] = _case.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AddCaseTimelineDialog>("توثيق حدث في الجدول الزمني", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenAddPartyDialog()
+    {
+        if (_case is null) return;
+        var parameters = new DialogParameters { ["CaseId"] = _case.Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AddCasePartyDialog>("إضافة طرف / خصم للدعوى", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenAssignLawyerDialog()
+    {
+        if (_case is null) return;
+        var caseItem = new CaseDto(
+            Id: _case.Id,
+            InternalNumber: _case.InternalNumber,
+            CourtNumber: _case.CourtNumber,
+            Title: _case.Title,
+            CaseTypeId: _case.CaseTypeId,
+            CaseTypeName: _case.CaseTypeName,
+            CaseStatusId: _case.CaseStatusId,
+            CaseStatusName: _case.CaseStatusName,
+            CaseStatusColor: _case.CaseStatusColor,
+            CourtId: _case.CourtId,
+            CourtName: _case.CourtName,
+            Circuit: _case.Circuit,
+            JudgeName: _case.JudgeName,
+            OpenDate: _case.OpenDate,
+            CloseDate: _case.CloseDate,
+            ClaimAmount: _case.ClaimAmount,
+            CurrentStage: _case.CurrentStage,
+            CreatedAt: _case.CreatedAt);
+
+        var parameters = new DialogParameters { ["CaseItem"] = caseItem };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AssignLawyerDialog>("تعيين محامي للملف", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenEditCaseDialog()
+    {
+        if (_case is null) return;
+        var parameters = new DialogParameters { ["CaseItem"] = _case };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<EditCaseDialog>("تعديل بيانات القضية", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenNewPaymentDialog(Guid? invoiceId = null, Guid? feeAgreementId = null)
+    {
+        if (_case is null) return;
+        var mainParty = _case.Parties.FirstOrDefault(p => p.IsMainClient);
+        var clientId = mainParty?.ClientId ?? Guid.Empty;
+        var parameters = new DialogParameters
+        {
+            ["DefaultClientId"] = clientId,
+            ["DefaultCaseId"] = _case.Id,
+            ["DefaultInvoiceId"] = invoiceId,
+            ["DefaultFeeAgreementId"] = feeAgreementId
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePaymentDialog>("سند قبض دفعة مالية", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task OpenNewInvoiceDialog()
+    {
+        if (_case is null) return;
+        var caseItem = new CaseDto(
+            Id: _case.Id,
+            InternalNumber: _case.InternalNumber,
+            CourtNumber: _case.CourtNumber,
+            Title: _case.Title,
+            CaseTypeId: _case.CaseTypeId,
+            CaseTypeName: _case.CaseTypeName,
+            CaseStatusId: _case.CaseStatusId,
+            CaseStatusName: _case.CaseStatusName,
+            CaseStatusColor: _case.CaseStatusColor,
+            CourtId: _case.CourtId,
+            CourtName: _case.CourtName,
+            Circuit: _case.Circuit,
+            JudgeName: _case.JudgeName,
+            OpenDate: _case.OpenDate,
+            CloseDate: _case.CloseDate,
+            ClaimAmount: _case.ClaimAmount,
+            CurrentStage: _case.CurrentStage,
+            CreatedAt: _case.CreatedAt);
+
+        var parameters = new DialogParameters { ["CaseItem"] = caseItem };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateInvoiceDialog>("إصدار فاتورة أتعاب", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadCaseData();
+    }
+
+    private async Task MarkTaskComplete(LegalTaskDto task)
+    {
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+        var result = await Mediator.Send(new CompleteLegalTaskCommand(task.Id, userName));
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("تم إنجاز المهمة بنجاح", Severity.Success);
+            await LoadCaseData();
+        }
+    }
+}

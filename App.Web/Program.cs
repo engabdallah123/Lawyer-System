@@ -9,8 +9,12 @@ using App.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Localization;
 using MudBlazor.Services;
+using QuestPDF.Infrastructure;
 using Shared.Application;
 using Shared.Infrastructure;
+
+// Configure QuestPDF Community License
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -87,7 +91,20 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 });
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseAntiforgery();
+
+app.MapGet("/api/invoices/{id:guid}/pdf", async (Guid id, MediatR.IMediator mediator, App.Application.Finance.Services.IInvoicePdfService pdfService) =>
+{
+    var result = await mediator.Send(new App.Application.Finance.Queries.GetInvoiceById.GetInvoiceByIdQuery(id));
+    if (result.IsFailure || result.Value is null)
+    {
+        return Results.NotFound("لم يتم العثور على الفاتورة المطلوبة");
+    }
+
+    var pdfBytes = pdfService.GenerateInvoicePdf(result.Value);
+    return Results.File(pdfBytes, "application/pdf", $"Invoice-{result.Value.InvoiceNumber}.pdf");
+});
 
 app.MapStaticAssets();
 app.MapRazorComponents<global::App.Web.Components.App>()

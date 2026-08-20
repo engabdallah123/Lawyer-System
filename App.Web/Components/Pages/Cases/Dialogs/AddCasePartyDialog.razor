@@ -1,0 +1,205 @@
+@using global::App.Application.Cases.Commands.AddCaseParty
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClients
+@using global::App.Domain.Cases.Enums
+@using global::App.Domain.Clients.Enums
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+
+<MudDialog Class="glass-card">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" />
+            </MudAvatar>
+            <MudText Typo="Typo.h6" Class="fw-extrabold text-primary">
+                إضافة طرف / خصم جديد للقضية
+            </MudText>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid Spacing="2" Class="pt-2">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Label="نوع الطرف"
+                               @bind-Value="_partyType"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@("شخص / فرد")">شخص / فرد</MudSelectItem>
+                        <MudSelectItem Value="@("شركة / مؤسسة")">شركة / مؤسسة</MudSelectItem>
+                        <MudSelectItem Value="@("جهة حكومية / وزارة")">جهة حكومية / وزارة</MudSelectItem>
+                        <MudSelectItem Value="@("هيئة / منظمة")">هيئة / منظمة</MudSelectItem>
+                        <MudSelectItem Value="@("أخرى")">أخرى</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="PartyRole"
+                               Label="الصفة القانونية في الدعوى *"
+                               @bind-Value="_partyRole"
+                               Required="true"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense">
+                        <MudSelectItem Value="@PartyRole.Defendant">مدعى عليه (Defendant)</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Plaintiff">مدعي آخر (Co-Plaintiff)</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Appellee">مستأنف ضده (Appellee)</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Appellant">مستأنف (Appellant)</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Respondent">مطعون ضده</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Petitioner">طاعن</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Accused">متهم</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Victim">مجني عليه</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Partner">خصم متدخل / شريك</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Debtor">مدين</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Creditor">دائن</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Witness">شاهد</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Expert">خبير</MudSelectItem>
+                        <MudSelectItem Value="@PartyRole.Other">أخرى</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_partyName"
+                                  Label="اسم الطرف / الخصم *"
+                                  Required="true"
+                                  RequiredError="اسم الطرف مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_phone"
+                                  Label="رقم الهاتف"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_email"
+                                  Label="البريد الإلكتروني"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_lawyerName"
+                                  Label="اسم محامي الخصم"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_lawyerPhone"
+                                  Label="هاتف محامي الخصم"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_address"
+                                  Label="عنوان الطرف / المقر"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_notes"
+                                  Label="ملاحظات حول الطرف"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Class="px-4"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Class="me-1" />
+                <span>إضافة الطرف</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid CaseId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _partyName = string.Empty;
+    private string _partyType = "شخص / فرد";
+    private PartyRole _partyRole = PartyRole.Defendant;
+    private string? _address;
+    private string? _phone;
+    private string? _email;
+    private string? _lawyerName;
+    private string? _lawyerPhone;
+    private string? _notes;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _isSaving = true;
+
+        try
+        {
+            var command = new AddCasePartyCommand(
+                CaseId: CaseId,
+                ClientId: null,
+                PartyName: _partyName,
+                PartyType: _partyType,
+                PartyRole: _partyRole,
+                IsMainClient: false,
+                Address: _address,
+                Phone: _phone,
+                Email: _email,
+                LawyerName: _lawyerName,
+                LawyerPhone: _lawyerPhone,
+                Notes: _notes);
+
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم إضافة الطرف بنجاح إلى ملف القضية", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

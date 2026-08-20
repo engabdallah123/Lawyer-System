@@ -1,190 +1,524 @@
 @using global::App.Application.Cases.Commands.CreateCase
+@using global::App.Application.Cases.DTOs
 @using global::App.Application.Clients.DTOs
 @using global::App.Application.Clients.Queries.GetClients
 @using global::App.Application.Lookups.DTOs
 @using global::App.Application.Lookups.Queries.GetCaseStatuses
 @using global::App.Application.Lookups.Queries.GetCaseTypes
 @using global::App.Application.Lookups.Queries.GetCourts
+@using global::App.Domain.Cases.Enums
 @using global::App.Domain.Clients.Enums
+@using global::App.Infrastructure.Identity.DTOs
+@using global::App.Infrastructure.Identity.Services
 @inject IMediator Mediator
+@inject IIdentityService IdentityService
 @inject ISnackbar Snackbar
 @inject CustomAuthenticationStateProvider AuthStateProvider
 
-<MudDialog Class="glass-card">
+<MudDialog Class="glass-card" Style="max-height: 92vh; overflow-y: auto;">
     <TitleContent>
-        <div class="d-flex align-center gap-2">
-            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
-                <MudIcon Icon="@Icons.Material.Filled.Gavel" Style="color: #c5a059;" />
-            </MudAvatar>
-            <MudText Typo="Typo.h6" Class="fw-bold">فتح ملف قضية جديدة</MudText>
+        <div class="d-flex flex-column flex-sm-row justify-space-between align-start align-sm-center gap-2 w-100 pb-1">
+            <div class="d-flex align-center gap-2 gap-sm-3">
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Class="shadow-sm">
+                    <MudIcon Icon="@Icons.Material.Filled.Gavel" Size="Size.Small" Style="color: #c5a059;" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.subtitle1" Class="fw-extrabold text-primary lh-tight" Style="letter-spacing: -0.3px;">
+                        فتح ملف قضية ودعوى جديدة
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-sm-block">
+                        تسجيل بيانات الموكل، الخصوم، المحكمة، وإسناد القضية
+                    </MudText>
+                </div>
+            </div>
+
+            <!-- Auto-generated Case Number Badge -->
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fw-bold px-2 align-self-start align-self-sm-auto">
+                <MudIcon Icon="@Icons.Material.Filled.Tag" Size="Size.Small" Class="me-1" />
+                @_internalNumber
+            </MudChip>
         </div>
     </TitleContent>
 
     <DialogContent>
         @if (_isLoadingLookups)
         {
-            <div class="d-flex justify-center align-center pa-8">
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-                <span class="ms-3 fw-bold">جاري تحميل قائمة المحاكم وأنواع القضايا والموكلين...</span>
+            <div class="d-flex flex-column justify-center align-center pa-8 pa-sm-12">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                <MudText Typo="Typo.body2" Class="mt-4 fw-bold text-secondary text-center">
+                    جاري تحميل بيانات الموكلين، المحاكم، وأنواع القضايا...
+                </MudText>
             </div>
         }
         else
         {
             <MudForm @ref="_form" @bind-IsValid="_isValid">
-                <MudGrid Spacing="2" Class="pt-2">
-                    <!-- Internal Number & Court Number -->
-                    <MudItem xs="12" md="6">
-                        <MudTextField @bind-Value="_internalNumber"
-                                      Label="الرقم الداخلي للقضية *"
-                                      Required="true"
-                                      RequiredError="الرقم الداخلي مطلوب"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                <div class="d-flex flex-column gap-4 pt-1 pb-3">
 
-                    <MudItem xs="12" md="6">
-                        <MudTextField @bind-Value="_courtNumber"
-                                      Label="رقم القضية في المحكمة"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                    <!-- ========================================================= -->
+                    <!-- القسم 1: بيانات الموكل الأساسي (صاحب الملف) -->
+                    <!-- ========================================================= -->
+                    <MudCard Elevation="0" Class="border rounded-xl pa-3 pa-sm-4" Style="background: rgba(197, 160, 89, 0.04); border-color: rgba(197, 160, 89, 0.25) !important;">
+                        <div class="d-flex align-center gap-2 mb-2 mb-sm-3">
+                            <MudIcon Icon="@Icons.Material.Filled.PersonPin" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle2" Class="fw-extrabold text-primary">
+                                أولاً: بيانات الموكل الأساسي (صاحب الدعوى) *
+                            </MudText>
+                        </div>
 
-                    <!-- Case Title -->
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="_title"
-                                      Label="موضوع / عنوان القضية *"
-                                      Required="true"
-                                      RequiredError="عنوان القضية مطلوب"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                        <MudGrid Spacing="2">
+                            <!-- Client Selection -->
+                            <MudItem xs="12" md="7">
+                                <MudSelect T="Guid?"
+                                           Label="اختيار الموكل *"
+                                           Value="@_mainClientId"
+                                           ValueChanged="OnClientChanged"
+                                           Required="true"
+                                           RequiredError="يجب اختيار الموكل صاحب القضية"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           AnchorOrigin="Origin.BottomCenter">
+                                    @foreach (var client in _clients)
+                                    {
+                                        var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
+                                        var typeLabel = client.ClientType == ClientType.Company ? "🏢 شركة" : "👤 فرد";
+                                        <MudSelectItem Value="@((Guid?)client.Id)">
+                                            <div class="d-flex flex-column flex-sm-row justify-space-between align-start align-sm-center w-100 gap-1">
+                                                <span class="fw-bold text-truncate" style="max-width: 220px;">@clientName</span>
+                                                <span class="text-secondary" style="font-size: 0.72rem;">@typeLabel - @client.Phone</span>
+                                            </div>
+                                        </MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
 
-                    <!-- Client Selection -->
-                    <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?"
-                                   Label="الموكل الأساسي"
-                                   @bind-Value="_mainClientId"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Clearable="true">
-                            @foreach (var client in _clients)
+                            <!-- Client Role in Case -->
+                            <MudItem xs="12" md="5">
+                                <MudSelect T="PartyRole"
+                                           Label="صفة الموكل في الدعوى *"
+                                           @bind-Value="_clientRole"
+                                           Required="true"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense">
+                                    <MudSelectItem Value="@PartyRole.Plaintiff">مدعي (Plaintiff)</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Defendant">مدعى عليه (Defendant)</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Appellant">مستأنف (Appellant)</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Appellee">مستأنف ضده (Appellee)</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Petitioner">طاعن (نقض / تمييز)</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Respondent">مطعون ضده</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Victim">مجني عليه / شاكي</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Accused">متهم</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Creditor">دائن</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Debtor">مدين</MudSelectItem>
+                                    <MudSelectItem Value="@PartyRole.Other">أخرى / صفة خاصة</MudSelectItem>
+                                </MudSelect>
+                            </MudItem>
+
+                            <!-- Selected Client Info Preview -->
+                            @if (_selectedClient != null)
                             {
-                                var clientName = client.ClientType == ClientType.Company ? client.CompanyName : client.FullName;
-                                <MudSelectItem Value="@((Guid?)client.Id)">@clientName</MudSelectItem>
+                                <MudItem xs="12">
+                                    <div class="d-flex flex-wrap align-center gap-2 pa-2 px-3 rounded-lg border bg-surface mt-1" style="font-size: 0.8rem;">
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Class="fw-bold">
+                                            @(_selectedClient.ClientType == ClientType.Company ? "🏢 شركة" : "👤 فرد")
+                                        </MudChip>
+                                        <div class="d-flex align-center gap-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.Phone" Size="Size.Small" Color="Color.Secondary" />
+                                            <MudText Typo="Typo.caption" Class="fw-bold">@_selectedClient.Phone</MudText>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(_selectedClient.NationalId))
+                                        {
+                                            <div class="d-flex align-center gap-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.Badge" Size="Size.Small" Color="Color.Secondary" />
+                                                <MudText Typo="Typo.caption">هوية: @_selectedClient.NationalId</MudText>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(_selectedClient.CommercialRegister))
+                                        {
+                                            <div class="d-flex align-center gap-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Color="Color.Secondary" />
+                                                <MudText Typo="Typo.caption">سجل: @_selectedClient.CommercialRegister</MudText>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(_selectedClient.City))
+                                        {
+                                            <div class="d-flex align-center gap-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Secondary" />
+                                                <MudText Typo="Typo.caption">@_selectedClient.City</MudText>
+                                            </div>
+                                        }
+                                    </div>
+                                </MudItem>
                             }
-                        </MudSelect>
-                    </MudItem>
+                        </MudGrid>
+                    </MudCard>
 
-                    <!-- Case Type Selection -->
-                    <MudItem xs="12" md="6">
-                        <MudSelect T="int"
-                                   Label="نوع القضية *"
-                                   @bind-Value="_caseTypeId"
-                                   Required="true"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense">
-                            @foreach (var type in _caseTypes)
-                            {
-                                <MudSelectItem Value="@type.Id">@type.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
+                    <!-- ========================================================= -->
+                    <!-- القسم 2: الخصوم وأطراف القضية (Opponents & Parties) -->
+                    <!-- ========================================================= -->
+                    <MudCard Elevation="0" Class="border rounded-xl pa-3 pa-sm-4">
+                        <div class="d-flex flex-column flex-sm-row justify-space-between align-start align-sm-center gap-2 mb-3">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Group" Color="Color.Warning" Size="Size.Small" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle2" Class="fw-extrabold">
+                                        ثانياً: الخصوم وأطراف القضية
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-sm-block">
+                                        يمكنك إضافة خصم واحد أو أكثر مع بيانات الاتصال ومحاميهم
+                                    </MudText>
+                                </div>
+                            </div>
 
-                    <!-- Court Selection -->
-                    <MudItem xs="12" md="6">
-                        <MudSelect T="int?"
-                                   Label="المحكمة المعنية"
-                                   @bind-Value="_courtId"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Clearable="true">
-                            @foreach (var court in _courts)
-                            {
-                                <MudSelectItem Value="@((int?)court.Id)">@court.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudItem>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       OnClick="AddParty"
+                                       Class="rounded-pill px-3 w-100 w-sm-auto">
+                                إضافة طرف / خصم
+                            </MudButton>
+                        </div>
 
-                    <!-- Circuit / Division -->
-                    <MudItem xs="12" md="6">
-                        <MudTextField @bind-Value="_circuit"
-                                      Label="الدائرة القضائية"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                        @if (_parties.Count == 0)
+                        {
+                            <div class="pa-3 text-center border border-dashed rounded-lg bg-surface-subtle">
+                                <MudIcon Icon="@Icons.Material.Filled.PersonSearch" Size="Size.Small" Color="Color.Secondary" Class="mb-1 opacity-50" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block">
+                                    لم يتم إضافة خصوم بعد. اضغط على "إضافة طرف / خصم" لتسجيل الخصوم ومحاميهم.
+                                </MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-3">
+                                @for (int i = 0; i < _parties.Count; i++)
+                                {
+                                    var index = i;
+                                    var party = _parties[index];
 
-                    <!-- Judge Name -->
-                    <MudItem xs="12" md="6">
-                        <MudTextField @bind-Value="_judgeName"
-                                      Label="اسم القاضي / رئيس الدائرة"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                                    <MudCard Elevation="0" Class="border rounded-lg pa-3 bg-surface-subtle position-relative">
+                                        <div class="d-flex justify-space-between align-center mb-2">
+                                            <div class="d-flex align-center gap-2">
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled" Class="fw-bold">
+                                                    الطرف / الخصم #@(index + 1)
+                                                </MudChip>
+                                                <span class="text-secondary fw-bold text-truncate" style="font-size: 0.8rem; max-width: 150px;">
+                                                    @(string.IsNullOrEmpty(party.PartyName) ? "طرف غير مسمى" : party.PartyName)
+                                                </span>
+                                            </div>
 
-                    <!-- Claim Amount -->
-                    <MudItem xs="12" md="6">
-                        <MudNumericField @bind-Value="_claimAmount"
-                                         Label="مبلغ المطالبة (ج.م)"
-                                         Variant="Variant.Outlined"
-                                         Margin="Margin.Dense"
-                                         Format="N2" />
-                    </MudItem>
+                                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => RemoveParty(index))" />
+                                        </div>
 
-                    <!-- Open Date -->
-                    <MudItem xs="12" md="6">
-                        <MudDatePicker @bind-Date="_openDate"
-                                       Label="تاريخ فتح الملف *"
-                                       Required="true"
-                                       Variant="Variant.Outlined"
-                                       Margin="Margin.Dense" />
-                    </MudItem>
+                                        <MudGrid Spacing="2">
+                                            <!-- Party Name -->
+                                            <MudItem xs="12" sm="6" md="4">
+                                                <MudTextField @bind-Value="party.PartyName"
+                                                              Label="اسم الطرف / الخصم *"
+                                                              Required="true"
+                                                              RequiredError="اسم الخصم مطلوب"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
 
-                    <!-- Current Stage -->
-                    <MudItem xs="12" md="6">
-                        <MudTextField @bind-Value="_currentStage"
-                                      Label="المرحلة الحالية (مثال: تقديم صحيفة الدعوى)"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                                            <!-- Party Type -->
+                                            <MudItem xs="12" sm="6" md="4">
+                                                <MudSelect T="string"
+                                                           Label="نوع الطرف"
+                                                           @bind-Value="party.PartyType"
+                                                           Variant="Variant.Outlined"
+                                                           Margin="Margin.Dense">
+                                                    <MudSelectItem Value="@("شخص / فرد")">شخص / فرد</MudSelectItem>
+                                                    <MudSelectItem Value="@("شركة / مؤسسة")">شركة / مؤسسة</MudSelectItem>
+                                                    <MudSelectItem Value="@("جهة حكومية / وزارة")">جهة حكومية / وزارة</MudSelectItem>
+                                                    <MudSelectItem Value="@("هيئة / منظمة")">هيئة / منظمة</MudSelectItem>
+                                                    <MudSelectItem Value="@("أخرى")">أخرى</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
 
-                    <!-- Description -->
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="_description"
-                                      Label="ملخص وتفاصيل الدعوى"
-                                      Lines="2"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
+                                            <!-- Party Role -->
+                                            <MudItem xs="12" sm="6" md="4">
+                                                <MudSelect T="PartyRole"
+                                                           Label="صفة الطرف في القضية *"
+                                                           @bind-Value="party.PartyRole"
+                                                           Variant="Variant.Outlined"
+                                                           Margin="Margin.Dense">
+                                                    <MudSelectItem Value="@PartyRole.Defendant">مدعى عليه (Defendant)</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Plaintiff">مدعي آخر (Co-Plaintiff)</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Appellee">مستأنف ضده (Appellee)</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Appellant">مستأنف (Appellant)</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Respondent">مطعون ضده</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Petitioner">طاعن</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Accused">متهم</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Victim">مجني عليه</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Partner">خصم متدخل / شريك</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Debtor">مدين</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Creditor">دائن</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Witness">شاهد</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Expert">خبير</MudSelectItem>
+                                                    <MudSelectItem Value="@PartyRole.Other">أخرى</MudSelectItem>
+                                                </MudSelect>
+                                            </MudItem>
 
-                    <!-- Notes -->
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="_notes"
-                                      Label="ملاحظات إضافية"
-                                      Lines="2"
-                                      Variant="Variant.Outlined"
-                                      Margin="Margin.Dense" />
-                    </MudItem>
-                </MudGrid>
+                                            <!-- Phone & Email -->
+                                            <MudItem xs="12" sm="6" md="3">
+                                                <MudTextField @bind-Value="party.Phone"
+                                                              Label="رقم هاتف الخصم"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6" md="3">
+                                                <MudTextField @bind-Value="party.Email"
+                                                              Label="البريد الإلكتروني"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
+
+                                            <!-- Opponent Lawyer & Phone -->
+                                            <MudItem xs="12" sm="6" md="3">
+                                                <MudTextField @bind-Value="party.LawyerName"
+                                                              Label="محامي الخصم"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6" md="3">
+                                                <MudTextField @bind-Value="party.LawyerPhone"
+                                                              Label="هاتف محامي الخصم"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
+
+                                            <!-- Address & Notes -->
+                                            <MudItem xs="12" sm="6">
+                                                <MudTextField @bind-Value="party.Address"
+                                                              Label="عنوان الطرف / المقر"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
+
+                                            <MudItem xs="12" sm="6">
+                                                <MudTextField @bind-Value="party.Notes"
+                                                              Label="ملاحظات حول الطرف"
+                                                              Variant="Variant.Outlined"
+                                                              Margin="Margin.Dense" />
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudCard>
+                                }
+                            </div>
+                        }
+                    </MudCard>
+
+                    <!-- ========================================================= -->
+                    <!-- القسم 3: البيانات الأساسية للقضية -->
+                    <!-- ========================================================= -->
+                    <MudCard Elevation="0" Class="border rounded-xl pa-3 pa-sm-4">
+                        <div class="d-flex align-center gap-2 mb-2 mb-sm-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle2" Class="fw-extrabold text-primary">
+                                ثالثاً: البيانات الأساسية لموضوع القضية
+                            </MudText>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <!-- Internal Number (Read Only) -->
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudTextField @bind-Value="_internalNumber"
+                                              Label="الرقم الداخلي (تلقائي)"
+                                              ReadOnly="true"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@Icons.Material.Filled.Lock" />
+                            </MudItem>
+
+                            <!-- Case Type Selection -->
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudSelect T="int"
+                                           Label="نوع القضية *"
+                                           Value="@_caseTypeId"
+                                           ValueChanged="OnCaseTypeChanged"
+                                           Required="true"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense">
+                                    @foreach (var type in _caseTypes)
+                                    {
+                                        <MudSelectItem Value="@type.Id">@type.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            <!-- Assigned Lawyer -->
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudSelect T="string"
+                                           Label="المحامي المكلف بالملف"
+                                           @bind-Value="_mainLawyerUserId"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Clearable="true">
+                                    @foreach (var lawyer in _lawyers)
+                                    {
+                                        <MudSelectItem Value="@lawyer.Id">@lawyer.FullName (@(lawyer.JobTitle ?? "محامي"))</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            <!-- Case Title / Subject -->
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="_title"
+                                              Label="موضوع / عنوان القضية *"
+                                              Required="true"
+                                              RequiredError="موضوع وعنوان القضية مطلوب"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <!-- Open Date -->
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudDatePicker @bind-Date="_openDate"
+                                               Label="تاريخ فتح الملف *"
+                                               Required="true"
+                                               Variant="Variant.Outlined"
+                                               Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <!-- Claim Amount -->
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudNumericField @bind-Value="_claimAmount"
+                                                 Label="مبلغ المطالبة (ج.م)"
+                                                 Variant="Variant.Outlined"
+                                                 Margin="Margin.Dense"
+                                                 Format="N2" />
+                            </MudItem>
+
+                            <!-- Current Stage -->
+                            <MudItem xs="12" sm="6" md="4">
+                                <MudTextField @bind-Value="_currentStage"
+                                              Label="المرحلة الحالية للدعوى"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCard>
+
+                    <!-- ========================================================= -->
+                    <!-- القسم 4: بيانات المحكمة والتقاضي -->
+                    <!-- ========================================================= -->
+                    <MudCard Elevation="0" Class="border rounded-xl pa-3 pa-sm-4">
+                        <div class="d-flex align-center gap-2 mb-2 mb-sm-3">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle2" Class="fw-extrabold text-primary">
+                                رابعاً: بيانات المحكمة والتقاضي
+                            </MudText>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <!-- Court Selection -->
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudSelect T="int?"
+                                           Label="المحكمة المختصة"
+                                           @bind-Value="_courtId"
+                                           Variant="Variant.Outlined"
+                                           Margin="Margin.Dense"
+                                           Clearable="true">
+                                    @foreach (var court in _courts)
+                                    {
+                                        <MudSelectItem Value="@((int?)court.Id)">@court.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            <!-- Circuit -->
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudTextField @bind-Value="_circuit"
+                                              Label="الدائرة القضائية"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <!-- Judge / Head of Circuit -->
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudTextField @bind-Value="_judgeName"
+                                              Label="رئيس الدائرة / القاضي"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <!-- Court Case Number -->
+                            <MudItem xs="12" sm="6" md="3">
+                                <MudTextField @bind-Value="_courtNumber"
+                                              Label="رقم القضية بالمحكمة"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCard>
+
+                    <!-- ========================================================= -->
+                    <!-- القسم 5: تفاصيل وملاحظات إضافية -->
+                    <!-- ========================================================= -->
+                    <MudCard Elevation="0" Class="border rounded-xl pa-3 pa-sm-4">
+                        <div class="d-flex align-center gap-2 mb-2 mb-sm-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Notes" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle2" Class="fw-extrabold text-primary">
+                                خامساً: ملخص ووقائع الدعوى والملاحظات
+                            </MudText>
+                        </div>
+
+                        <MudGrid Spacing="2">
+                            <!-- Description -->
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="_description"
+                                              Label="ملخص وقائع وطلبات الدعوى"
+                                              Lines="3"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+
+                            <!-- Notes -->
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="_notes"
+                                              Label="ملاحظات إدارية وقانونية إضافية"
+                                              Lines="2"
+                                              Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCard>
+
+                </div>
             </MudForm>
         }
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
-        <MudButton Variant="Variant.Filled"
-                   Class="btn-gold-gradient"
-                   OnClick="Submit"
-                   Disabled="@(!_isValid || _isSaving || _isLoadingLookups)">
-            @if (_isSaving)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
-                <span>جاري فتح الملف...</span>
-            }
-            else
-            {
-                <span>إنشاء القضية</span>
-            }
-        </MudButton>
+        <div class="px-2 px-sm-6 py-2 py-sm-3 border-t d-flex flex-column-reverse flex-sm-row justify-space-between align-stretch align-sm-center gap-2 w-100">
+            <MudButton OnClick="Cancel" Variant="Variant.Text" Color="Color.Secondary" Class="px-4 w-100 w-sm-auto">
+                إلغاء
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled"
+                       Class="btn-gold-gradient px-4 px-sm-6 py-2 shadow-md rounded-pill w-100 w-sm-auto"
+                       OnClick="Submit"
+                       Disabled="@(!_isValid || _isSaving || _isLoadingLookups)">
+                @if (_isSaving)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                    <span class="fw-bold">جاري فتح ملف القضية...</span>
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="me-1" />
+                    <span class="fw-bold">إنشاء ملف القضية</span>
+                }
+            </MudButton>
+        </div>
     </DialogActions>
 </MudDialog>
 
@@ -200,6 +534,7 @@
     private bool _isSaving = false;
     private bool _isLoadingLookups = true;
 
+    // Form fields
     private string _internalNumber = $"CASE-{DateTime.Now:yyyyMMdd}-{Random.Shared.Next(100, 999)}";
     private string? _courtNumber;
     private string _title = string.Empty;
@@ -211,14 +546,37 @@
     private DateTime? _openDate = DateTime.Today;
     private decimal? _claimAmount;
     private string? _description;
-    private string? _currentStage = "قيد الإجراء";
+    private string? _currentStage = "قيد الإجراء والافتتاح";
     private string? _notes;
-    private Guid? _mainClientId;
 
+    // Client & Roles
+    private Guid? _mainClientId;
+    private PartyRole _clientRole = PartyRole.Plaintiff;
+    private ClientDto? _selectedClient;
+    private string? _mainLawyerUserId;
+
+    // Opponents / Additional Parties
+    private class EditablePartyItem
+    {
+        public string PartyName { get; set; } = string.Empty;
+        public string PartyType { get; set; } = "شخص / فرد";
+        public PartyRole PartyRole { get; set; } = PartyRole.Defendant;
+        public string? Address { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+        public string? LawyerName { get; set; }
+        public string? LawyerPhone { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    private List<EditablePartyItem> _parties = [];
+
+    // Lookups
     private List<LookupDto> _caseTypes = [];
     private List<LookupDto> _caseStatuses = [];
     private List<LookupDto> _courts = [];
     private List<ClientDto> _clients = [];
+    private List<UserDto> _lawyers = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -234,9 +592,10 @@
             var typesTask = Mediator.Send(new GetCaseTypesQuery());
             var statusesTask = Mediator.Send(new GetCaseStatusesQuery());
             var courtsTask = Mediator.Send(new GetCourtsQuery());
-            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 100));
+            var clientsTask = Mediator.Send(new GetClientsQuery(PageSize: 200));
+            var usersTask = IdentityService.GetUsersAsync();
 
-            await Task.WhenAll(typesTask, statusesTask, courtsTask, clientsTask);
+            await Task.WhenAll(typesTask, statusesTask, courtsTask, clientsTask, usersTask);
 
             if (typesTask.Result.IsSuccess && typesTask.Result.Value != null)
                 _caseTypes = typesTask.Result.Value.ToList();
@@ -250,11 +609,20 @@
             if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
                 _clients = clientsTask.Result.Value.ToList();
 
+            var users = usersTask.Result;
+            if (users != null)
+                _lawyers = users.Where(u => u.IsActive).ToList();
+
             if (_caseTypes.Count > 0)
                 _caseTypeId = _caseTypes[0].Id;
 
             if (_caseStatuses.Count > 0)
                 _caseStatusId = _caseStatuses[0].Id;
+
+            if (_mainClientId.HasValue)
+            {
+                OnClientChanged(_mainClientId.Value);
+            }
         }
         catch (Exception ex)
         {
@@ -266,6 +634,74 @@
         }
     }
 
+    private void OnClientChanged(Guid? clientId)
+    {
+        _mainClientId = clientId;
+        _selectedClient = _clients.FirstOrDefault(c => c.Id == clientId);
+    }
+
+    private void OnCaseTypeChanged(int caseTypeId)
+    {
+        _caseTypeId = caseTypeId;
+        var selectedType = _caseTypes.FirstOrDefault(t => t.Id == caseTypeId);
+        if (selectedType != null)
+        {
+            var name = selectedType.Name;
+            if (name.Contains("جنائي") || name.Contains("جنح") || name.Contains("جنايات"))
+            {
+                _clientRole = PartyRole.Victim;
+                foreach (var p in _parties) p.PartyRole = PartyRole.Accused;
+            }
+            else if (name.Contains("استئناف"))
+            {
+                _clientRole = PartyRole.Appellant;
+                foreach (var p in _parties) p.PartyRole = PartyRole.Appellee;
+            }
+            else if (name.Contains("نقض") || name.Contains("تمييز"))
+            {
+                _clientRole = PartyRole.Petitioner;
+                foreach (var p in _parties) p.PartyRole = PartyRole.Respondent;
+            }
+            else if (name.Contains("تنفيذ") || name.Contains("شيك") || name.Contains("كمبيالة"))
+            {
+                _clientRole = PartyRole.Creditor;
+                foreach (var p in _parties) p.PartyRole = PartyRole.Debtor;
+            }
+            else
+            {
+                _clientRole = PartyRole.Plaintiff;
+                foreach (var p in _parties) p.PartyRole = PartyRole.Defendant;
+            }
+        }
+    }
+
+    private void AddParty()
+    {
+        var defaultOpponentRole = _clientRole switch
+        {
+            PartyRole.Victim => PartyRole.Accused,
+            PartyRole.Appellant => PartyRole.Appellee,
+            PartyRole.Petitioner => PartyRole.Respondent,
+            PartyRole.Creditor => PartyRole.Debtor,
+            _ => PartyRole.Defendant
+        };
+
+        _parties.Add(new EditablePartyItem
+        {
+            PartyName = string.Empty,
+            PartyType = "شخص / فرد",
+            PartyRole = defaultOpponentRole
+        });
+    }
+
+    private void RemoveParty(int index)
+    {
+        if (index >= 0 && index < _parties.Count)
+        {
+            _parties.RemoveAt(index);
+        }
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Submit()
@@ -274,33 +710,57 @@
         if (!_isValid)
             return;
 
+        if (!_mainClientId.HasValue)
+            {
+            Snackbar.Add("يرجى اختيار الموكل صاحب ملف القضية أولاً", Severity.Warning);
+            return;
+        }
+
         _isSaving = true;
         var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
 
         try
         {
+            var additionalPartiesDto = _parties
+                .Where(p => !string.IsNullOrWhiteSpace(p.PartyName))
+                .Select(p => new CreateCasePartyDto(
+                    ClientId: null,
+                    PartyName: p.PartyName,
+                    PartyType: p.PartyType,
+                    PartyRole: p.PartyRole,
+                    IsMainClient: false,
+                    Address: p.Address,
+                    Phone: p.Phone,
+                    Email: p.Email,
+                    LawyerName: p.LawyerName,
+                    LawyerPhone: p.LawyerPhone,
+                    Notes: p.Notes))
+                .ToList();
+
             var command = new CreateCaseCommand(
-                _internalNumber,
-                _courtNumber,
-                _title,
-                _caseTypeId,
-                _caseStatusId,
-                _courtId,
-                _circuit,
-                _judgeName,
-                _openDate ?? DateTime.Today,
-                _claimAmount,
-                _description,
-                _currentStage,
-                _notes,
-                _mainClientId,
-                null,
-                userName);
+                InternalNumber: _internalNumber,
+                CourtNumber: _courtNumber,
+                Title: _title,
+                CaseTypeId: _caseTypeId,
+                CaseStatusId: _caseStatusId,
+                CourtId: _courtId,
+                Circuit: _circuit,
+                JudgeName: _judgeName,
+                OpenDate: _openDate ?? DateTime.Today,
+                ClaimAmount: _claimAmount,
+                Description: _description,
+                CurrentStage: _currentStage,
+                Notes: _notes,
+                ClientId: _mainClientId.Value,
+                ClientRole: _clientRole,
+                AdditionalParties: additionalPartiesDto,
+                MainLawyerUserId: _mainLawyerUserId,
+                CreatedBy: userName);
 
             var result = await Mediator.Send(command);
             if (result.IsSuccess)
             {
-                Snackbar.Add("تم تسجيل القضية وفتح الملف بنجاح", Severity.Success);
+                Snackbar.Add("تم فتح ملف القضية وتسجيل الموكل والخصوم بنجاح", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else
@@ -310,7 +770,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+            Snackbar.Add($"حدث خطأ أثناء حفظ ملف القضية: {ex.Message}", Severity.Error);
         }
         finally
         {

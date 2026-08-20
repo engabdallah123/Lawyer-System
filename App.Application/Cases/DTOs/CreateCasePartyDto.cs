@@ -2,16 +2,12 @@ using App.Domain.Cases.Enums;
 
 namespace App.Application.Cases.DTOs;
 
-public record CasePartyDto(
-    Guid Id,
-    Guid CaseId,
-    Guid? ClientId,
-    string? ClientName,
-    string? PartyName,
-    string? PartyType,
-    PartyRole PartyRole,
-    string PartyRoleName,
-    bool IsMainClient,
+public record CreateCasePartyDto(
+    Guid? ClientId = null,
+    string? PartyName = null,
+    string? PartyType = "شخص / فرد",
+    PartyRole PartyRole = PartyRole.Defendant,
+    bool IsMainClient = false,
     string? Address = null,
     string? Phone = null,
     string? Email = null,

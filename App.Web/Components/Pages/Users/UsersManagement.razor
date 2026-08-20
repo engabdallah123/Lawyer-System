@@ -9,13 +9,18 @@
 
 <!-- Header & Add Button -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
-    <div>
-        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
-            إدارة المستخدمين والصلاحيات 👥
-        </MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            إدارة حسابات فريق العمل وتعيين الأدوار والصلاحيات الدقيقة لكل مستخدم
-        </MudText>
+    <div class="d-flex align-center gap-3">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
+            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Style="color: #c5a059;" />
+        </MudAvatar>
+        <div>
+            <MudText Typo="Typo.h5" Class="fw-extrabold text-primary" Style="letter-spacing: -0.3px;">
+                إدارة المستخدمين والصلاحيات
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                إدارة حسابات فريق العمل وتعيين الأدوار والصلاحيات الدقيقة لكل مستخدم
+            </MudText>
+        </div>
     </div>
 
     <MudButton Variant="Variant.Filled"

@@ -1,4 +1,6 @@
 @page "/consultations"
+@using global::App.Application.Consultations.Commands.CancelConsultation
+@using global::App.Application.Consultations.Commands.CompleteConsultation
 @using global::App.Application.Consultations.DTOs
 @using global::App.Application.Consultations.Queries.GetConsultations
 @using global::App.Domain.Consultations.Enums
@@ -12,13 +14,18 @@
 
 <!-- Header & Add Button -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
-    <div>
-        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
-            الاستشارات القانونية 📜
-        </MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            سجل الاستشارات، الآراء القانونية، المواعيد والأتعاب المقدرة
-        </MudText>
+    <div class="d-flex align-center gap-3">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
+            <MudIcon Icon="@Icons.Material.Filled.SupportAgent" Style="color: #c5a059;" />
+        </MudAvatar>
+        <div>
+            <MudText Typo="Typo.h5" Class="fw-extrabold text-primary" Style="letter-spacing: -0.3px;">
+                الاستشارات القانونية والشرعية
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                سجل الاستشارات، الآراء القانونية، المواعيد والتحكم الكامل في الحالة
+            </MudText>
+        </div>
     </div>
 
     <MudButton Variant="Variant.Filled"
@@ -92,6 +99,7 @@
                     <MudTh>الأتعاب المقدرة</MudTh>
                     <MudTh>حالة الاستشارة</MudTh>
                     <MudTh>الرأي القانوني / ملاحظات</MudTh>
+                    <MudTh Style="text-align: center;">الإجراءات والتحكم</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="الموكل">
@@ -109,13 +117,15 @@
                         </div>
                     </MudTd>
                     <MudTd DataLabel="الموضوع">
-                        <span class="fw-bold text-primary">@context.Subject</span>
+                        <span class="fw-bold text-primary cursor-pointer" @onclick="@(() => OpenConsultationDetailsDialog(context))">
+                            @context.Subject
+                        </span>
                     </MudTd>
                     <MudTd DataLabel="الموعد">
                         @context.ConsultationDate.ToString("yyyy/MM/dd")
                     </MudTd>
                     <MudTd DataLabel="الأتعاب">
-                        @(context.Fee.HasValue ? context.Fee.Value.ToString("N2") + " ر.س" : "غير محدد")
+                        @(context.Fee.HasValue ? context.Fee.Value.ToString("N2") + " ج.م" : "غير محدد")
                     </MudTd>
                     <MudTd DataLabel="الحالة">
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetStatusColor(context.Status)">
@@ -123,9 +133,42 @@
                         </MudChip>
                     </MudTd>
                     <MudTd DataLabel="الرأي القانوني">
-                        <span class="text-truncate" style="max-width: 250px; display: inline-block;">
+                        <span class="text-truncate" style="max-width: 200px; display: inline-block;">
                             @(context.Notes ?? context.Description ?? "-")
                         </span>
+                    </MudTd>
+                    <MudTd DataLabel="الإجراءات" Style="text-align: center;">
+                        <div class="d-flex justify-center align-center gap-1">
+                            <!-- View Details Button -->
+                            <MudTooltip Text="عرض التفاصيل الكاملة والرأي القانوني">
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                               Size="Size.Small"
+                                               Color="Color.Primary"
+                                               OnClick="@(() => OpenConsultationDetailsDialog(context))" />
+                            </MudTooltip>
+
+                            @if (context.Status != ConsultationStatus.Completed)
+                            {
+                                <!-- Quick Complete Button -->
+                                <MudTooltip Text="تحديد كمكتملة">
+                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
+                                                   Size="Size.Small"
+                                                   Color="Color.Success"
+                                                   OnClick="@(() => QuickMarkAsCompleted(context))" />
+                                </MudTooltip>
+                            }
+
+                            @if (context.Status != ConsultationStatus.Cancelled)
+                            {
+                                <!-- Quick Cancel Button -->
+                                <MudTooltip Text="إلغاء الاستشارة">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                                   Size="Size.Small"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => QuickMarkAsCancelled(context))" />
+                                </MudTooltip>
+                            }
+                        </div>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -211,5 +254,65 @@
 
         if (result != null && !result.Canceled)
             await LoadConsultations();
+    }
+
+    private async Task OpenConsultationDetailsDialog(ConsultationDto consultation)
+    {
+        var parameters = new DialogParameters<ConsultationDetailsDialog>
+        {
+            { x => x.Consultation, consultation }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ConsultationDetailsDialog>("تفاصيل الاستشارة القانونية", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+            await LoadConsultations();
+    }
+
+    private async Task QuickMarkAsCompleted(ConsultationDto consultation)
+    {
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+        try
+        {
+            var command = new CompleteConsultationCommand(consultation.Id, userName);
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add($"تم تحديث استشارة '{consultation.Subject}' إلى مكتملة بنجاح", Severity.Success);
+                await LoadConsultations();
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task QuickMarkAsCancelled(ConsultationDto consultation)
+    {
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+        try
+        {
+            var command = new CancelConsultationCommand(consultation.Id, userName);
+            var result = await Mediator.Send(command);
+            if (result.IsSuccess)
+            {
+                Snackbar.Add($"تم إلغاء استشارة '{consultation.Subject}' بنجاح", Severity.Info);
+                await LoadConsultations();
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
     }
 }

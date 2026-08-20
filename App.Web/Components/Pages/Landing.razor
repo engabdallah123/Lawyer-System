@@ -1,0 +1,186 @@
+@page "/landing"
+@implements IDisposable
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>مكتب المستشار علاء خالد علام | Alaa Khaled Allam</PageTitle>
+
+<!-- Unauthenticated Executive Landing Page -->
+<div class="pa-4 pa-md-10 landing-hero-container">
+    <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-auto">
+        <MudGrid Spacing="6" Class="align-center">
+
+            <!-- Right Side (RTL): Lawyer Image with Orbiting Glowing Train Light Animation -->
+            <MudItem xs="12" md="5" Class="d-flex flex-column align-center justify-center order-1 order-md-1">
+                <div class="glowing-train-wrapper shadow-24">
+                    <div class="lawyer-image-frame" style="max-width: 380px; width: 100%;">
+                        <img src="/Images/alaa.jpg" alt="المستشار علاء خالد علام" />
+                    </div>
+                </div>
+
+                <!-- Lawyer Title & Name Badges Below Image -->
+                <div class="text-center mt-6">
+                    <MudChip T="string" Size="Size.Large" Class="px-5 py-2 mb-2 btn-gold-gradient fw-extrabold shadow-md">
+                        المستشار / علاء خالد علام
+                    </MudChip>
+                    <MudText Typo="Typo.h6" Class="fw-extrabold text-primary d-block">
+                        Alaa Khaled Allam
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mt-1">
+                        محامٍ ومستشار قانوني مقيد لدى نقابة المحامين والمحاكم العليا
+                    </MudText>
+                </div>
+            </MudItem>
+
+            <!-- Left Side (RTL): Welcome Greetings, Dynamic Quotes Carousel & Action CTA -->
+            <MudItem xs="12" md="7" Class="order-2 order-md-2">
+                <div class="ps-md-4">
+                    <!-- Welcome Badge Header -->
+                    <div class="d-flex align-center justify-center justify-md-start flex-wrap gap-2 mb-3 text-center text-md-start">
+                        <MudChip T="string" Size="Size.Small" Style="background: rgba(197, 160, 89, 0.15); color: #c5a059; font-weight: 800; border: 1px solid rgba(197, 160, 89, 0.4);">
+                            <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Small" Class="me-1" /> صرح العدالة وسيادة القانون
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="fw-bold">
+                            Alaa Khaled Allam Law Firm
+                        </MudChip>
+                    </div>
+
+                    <MudText Typo="Typo.h3" Class="fw-extrabold text-primary mb-2 text-center text-md-start" Style="letter-spacing: -0.5px; line-height: 1.25;">
+                        مرحباً بكم في مكتب المستشار <span style="color: #c5a059;">علاء خالد علام</span>
+                    </MudText>
+                    <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="fw-bold mb-6 text-center text-md-start">
+                        Advocate & Legal Consultant — Alaa Khaled Allam
+                    </MudText>
+
+                    <!-- Dynamic Animated Quotes Section about Advocacy & Justice -->
+                    <div class="quote-card-animated mb-6 shadow-lg">
+                        <div class="d-flex align-start gap-3">
+                            <MudIcon Icon="@Icons.Material.Filled.FormatQuote" Size="Size.Large" Style="color: #c5a059; transform: rotate(180deg);" />
+                            <div class="w-100">
+                                <MudText Typo="Typo.h6" Class="fw-bold mb-3 quote-text-fade" Style="line-height: 1.65; color: var(--mud-palette-text-primary);" @key="_currentQuoteIndex">
+                                    "@_quotes[_currentQuoteIndex].Text"
+                                </MudText>
+                                <div class="d-flex align-center justify-space-between flex-wrap gap-2">
+                                    <MudChip T="string" Size="Size.Small" Style="background: rgba(197, 160, 89, 0.12); color: #c5a059; font-weight: 700;">
+                                        @_quotes[_currentQuoteIndex].Source
+                                    </MudChip>
+
+                                    <!-- Quotes Carousel Controls -->
+                                    <div class="d-flex align-center gap-1">
+                                        <MudIconButton Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" Color="Color.Primary" OnClick="PreviousQuote" />
+                                        @for (int i = 0; i < _quotes.Count; i++)
+                                        {
+                                            var index = i;
+                                            <span @onclick="@(() => SetQuote(index))"
+                                                  style="width: 10px; height: 10px; border-radius: 50%; display: inline-block; cursor: pointer; transition: all 0.3s; background: @(index == _currentQuoteIndex ? "#c5a059" : "rgba(197,160,89,0.3)");"></span>
+                                        }
+                                        <MudIconButton Icon="@Icons.Material.Filled.ChevronLeft" Size="Size.Small" Color="Color.Primary" OnClick="NextQuote" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Highlights Feature Grid -->
+                    <MudGrid Spacing="3" Class="mb-8">
+                        <MudItem xs="12" sm="4">
+                            <MudPaper Elevation="0" Class="pa-4 glass-card h-100">
+                                <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Primary" Size="Size.Medium" Class="mb-2" />
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">الترافع والقضايا</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">خبرة واسعة في الترافع أمام المحاكم المدنية، الجنائية والتجارية.</MudText>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="4">
+                            <MudPaper Elevation="0" Class="pa-4 glass-card h-100">
+                                <MudIcon Icon="@Icons.Material.Filled.Handshake" Color="Color.Secondary" Size="Size.Medium" Class="mb-2" />
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">الاستشارات والتحكيم</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">صياغة العقود وتطوير الحلول القانونية وتجنب النزاعات القضائية.</MudText>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="4">
+                            <MudPaper Elevation="0" Class="pa-4 glass-card h-100">
+                                <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Success" Size="Size.Medium" Class="mb-2" />
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold mb-1">السرية وحماية الحقوق</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">الالتزام التام بأعلى معايير السرية لحفظ وتوثيق حقوق كافة الموكلين.</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+
+                    <!-- Action Buttons CTA -->
+                    <div class="d-flex flex-wrap align-center justify-center justify-md-start gap-3">
+                        <MudButton Variant="Variant.Filled"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Login"
+                                   Href="/login"
+                                   Class="btn-gold-gradient rounded-pill px-8 py-3 shadow-lg">
+                            تسجيل الدخول إلى المنظومة
+                        </MudButton>
+                    </div>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+</div>
+
+@code {
+    private int _currentQuoteIndex = 0;
+    private System.Threading.Timer? _quoteTimer;
+
+    private record QuoteItem(string Text, string Source);
+
+    private readonly List<QuoteItem> _quotes = new()
+    {
+        new("العدل أساس الملك، والحق يعلو ولا يُعلى عليه في كل ساحة وميدان.", "حكمة قانونية خالدة"),
+        new("المحاماة صرحٌ لحماية الحريات، ودرعٌ لحفظ الحقوق وصيانة كرامة الإنسان.", "رسالة المحاماة السامية"),
+        new("أمانة الكلمة وتطبيق سيادة القانون هما عهدنا الدائم لضمان حقوق كافة موكلينا.", "المستشار علاء خالد علام"),
+        new("لا يُضيع حقٌ وراءه مطالب، ونحن هنا لنكون سندك القانوني الأقوى والدعامة الراسخة.", "مبدأ العدالة الناجزة"),
+        new("المحامي صوت من لا صوت له، والحارس الأمين على شرعية الإجراءات وضمانات العدالة.", "ميثاق الشرف القضائي")
+    };
+
+    private bool _isDisposed = false;
+
+    protected override void OnInitialized()
+    {
+        _quoteTimer = new System.Threading.Timer(_ =>
+        {
+            if (_isDisposed) return;
+            _currentQuoteIndex = (_currentQuoteIndex + 1) % _quotes.Count;
+            try
+            {
+                InvokeAsync(() =>
+                {
+                    if (!_isDisposed)
+                    {
+                        StateHasChanged();
+                    }
+                });
+            }
+            catch (ObjectDisposedException) { }
+            catch (Exception) { }
+        }, null, 4500, 4500);
+    }
+
+    private void NextQuote()
+    {
+        _currentQuoteIndex = (_currentQuoteIndex + 1) % _quotes.Count;
+    }
+
+    private void PreviousQuote()
+    {
+        _currentQuoteIndex = (_currentQuoteIndex - 1 + _quotes.Count) % _quotes.Count;
+    }
+
+    private void SetQuote(int index)
+    {
+        _currentQuoteIndex = index;
+    }
+
+    public void Dispose()
+    {
+        _isDisposed = true;
+        _quoteTimer?.Dispose();
+        _quoteTimer = null;
+    }
+}

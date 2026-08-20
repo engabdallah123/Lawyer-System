@@ -7,6 +7,12 @@ public record AddCasePartyCommand(
     Guid CaseId,
     Guid? ClientId,
     string? PartyName,
+    string? PartyType,
     PartyRole PartyRole,
     bool IsMainClient,
-    string? Notes) : ICommand<Guid>;
+    string? Address = null,
+    string? Phone = null,
+    string? Email = null,
+    string? LawyerName = null,
+    string? LawyerPhone = null,
+    string? Notes = null) : ICommand<Guid>;

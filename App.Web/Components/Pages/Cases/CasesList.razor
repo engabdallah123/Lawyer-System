@@ -19,7 +19,7 @@
 <!-- Header & New Case Button -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
     <div class="d-flex align-center gap-3">
-        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Large" Class="shadow-sm">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
             <MudIcon Icon="@Icons.Material.Filled.Gavel" Style="color: #c5a059;" />
         </MudAvatar>
         <div>
@@ -135,7 +135,9 @@
                 <RowTemplate>
                     <MudTd DataLabel="الرقم">
                         <div class="d-flex flex-column">
-                            <span class="fw-bold text-primary">@context.InternalNumber</span>
+                            <MudLink Href="@($"cases/{context.Id}")" Class="fw-bold text-primary text-decoration-none">
+                                @context.InternalNumber
+                            </MudLink>
                             @if (!string.IsNullOrEmpty(context.CourtNumber))
                             {
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">رقم المحكمة: @context.CourtNumber</MudText>
@@ -143,7 +145,9 @@
                         </div>
                     </MudTd>
                     <MudTd DataLabel="الموضوع">
-                        <span class="fw-bold">@context.Title</span>
+                        <MudLink Href="@($"cases/{context.Id}")" Class="fw-bold text-primary text-decoration-none">
+                            @context.Title
+                        </MudLink>
                     </MudTd>
                     <MudTd DataLabel="النوع">
                         <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">
@@ -178,6 +182,9 @@
                     </MudTd>
                     <MudTd Style="text-align: center;">
                         <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small" Dense="true" AnchorOrigin="Origin.BottomLeft">
+                            <MudMenuItem Icon="@Icons.Material.Filled.Visibility" Href="@($"cases/{context.Id}")">
+                                عرض تفاصيل القضية
+                            </MudMenuItem>
                             <MudMenuItem Icon="@Icons.Material.Filled.PersonAdd" OnClick="@(() => OpenAssignLawyerDialog(context))">
                                 إسناد / تعيين محامي
                             </MudMenuItem>
@@ -318,7 +325,7 @@
             defaultClientId = parsedGuid;
 
         var parameters = new DialogParameters { ["DefaultClientId"] = defaultClientId };
-        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
         var dialog = await DialogService.ShowAsync<CreateCaseDialog>("فتح ملف قضية ودعوى جديدة", parameters, options);
         var result = await dialog.Result;
 

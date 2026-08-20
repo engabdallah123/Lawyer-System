@@ -1,3 +1,5 @@
+using App.Application.Cases.DTOs;
+using App.Domain.Cases.Enums;
 using Shared.Application.Messaging;
 
 namespace App.Application.Cases.Commands.CreateCase;
@@ -16,6 +18,8 @@ public record CreateCaseCommand(
     string? Description,
     string? CurrentStage,
     string? Notes,
-    Guid? MainClientId,
+    Guid ClientId,
+    PartyRole ClientRole,
+    List<CreateCasePartyDto>? AdditionalParties,
     string? MainLawyerUserId,
     string CreatedBy) : ICommand<Guid>;

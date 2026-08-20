@@ -49,6 +49,7 @@ internal sealed class GetCasesQueryHandler : IQueryHandler<GetCasesQuery, IEnume
                 AND (@CaseStatusId IS NULL OR c.CaseStatusId = @CaseStatusId)
                 AND (@CourtId IS NULL OR c.CourtId = @CourtId)
                 AND (@IsClosed IS NULL OR (@IsClosed = 1 AND c.CloseDate IS NOT NULL) OR (@IsClosed = 0 AND c.CloseDate IS NULL))
+                AND (@ClientId IS NULL OR EXISTS (SELECT 1 FROM CaseParties cp WHERE cp.CaseId = c.Id AND cp.ClientId = @ClientId))
             ORDER BY c.OpenDate DESC
             OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
 
@@ -65,6 +66,7 @@ internal sealed class GetCasesQueryHandler : IQueryHandler<GetCasesQuery, IEnume
                 CaseStatusId = request.CaseStatusId,
                 CourtId = request.CourtId,
                 IsClosed = request.IsClosed,
+                ClientId = request.ClientId,
                 Offset = offset,
                 PageSize = request.PageSize
             });

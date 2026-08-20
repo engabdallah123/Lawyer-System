@@ -95,7 +95,7 @@
 
                 <MudItem xs="6" md="3">
                     <MudNumericField @bind-Value="_itemUnitPrice"
-                                     Label="سعر الوحدة (ر.س) *"
+                                     Label="سعر الوحدة (ج.م) *"
                                      Min="1"
                                      Format="N2"
                                      Variant="Variant.Outlined"
@@ -105,7 +105,7 @@
                 <!-- Discount & Tax -->
                 <MudItem xs="6" md="6">
                     <MudNumericField @bind-Value="_discount"
-                                     Label="الخصم (ر.س)"
+                                     Label="الخصم (ج.م)"
                                      Min="0"
                                      Format="N2"
                                      Variant="Variant.Outlined"
@@ -114,7 +114,7 @@
 
                 <MudItem xs="6" md="6">
                     <MudNumericField @bind-Value="_taxAmount"
-                                     Label="ضريبة القيمة المضافة (ر.س)"
+                                     Label="ضريبة القيمة المضافة (ج.م)"
                                      Min="0"
                                      Format="N2"
                                      Variant="Variant.Outlined"
@@ -126,7 +126,7 @@
                     <MudPaper Class="pa-3 bg-light-card rounded d-flex justify-space-between align-center">
                         <MudText Typo="Typo.body2">الإجمالي المستحق الصافي:</MudText>
                         <MudText Typo="Typo.h6" Class="fw-bold text-primary">
-                            @(((_itemQuantity * _itemUnitPrice) - _discount + _taxAmount).ToString("N2")) ر.س
+                            @(((_itemQuantity * _itemUnitPrice) - _discount + _taxAmount).ToString("N2")) ج.م
                         </MudText>
                     </MudPaper>
                 </MudItem>

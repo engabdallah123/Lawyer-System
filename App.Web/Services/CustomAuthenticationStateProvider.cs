@@ -7,8 +7,8 @@ namespace App.Web.Services;
 public class CustomAuthenticationStateProvider : AuthenticationStateProvider
 {
     private const string PermissionClaimType = "Permission";
-    private ClaimsPrincipal _currentUserPrincipal = new(new ClaimsIdentity());
-    private UserDto? _currentUser;
+    private static ClaimsPrincipal _currentUserPrincipal = new(new ClaimsIdentity());
+    private static UserDto? _currentUser;
 
     public UserDto? CurrentUser => _currentUser;
     public bool IsAuthenticated => _currentUser != null && _currentUserPrincipal.Identity?.IsAuthenticated == true;

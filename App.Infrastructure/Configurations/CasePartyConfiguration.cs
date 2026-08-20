@@ -12,7 +12,13 @@ public class CasePartyConfiguration : IEntityTypeConfiguration<CaseParty>
         builder.HasKey(cp => cp.Id);
 
         builder.Property(cp => cp.PartyName).HasMaxLength(200);
-        builder.Property(cp => cp.PartyRole).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(cp => cp.PartyType).HasMaxLength(50);
+        builder.Property(cp => cp.PartyRole).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(cp => cp.Address).HasMaxLength(300);
+        builder.Property(cp => cp.Phone).HasMaxLength(30);
+        builder.Property(cp => cp.Email).HasMaxLength(100);
+        builder.Property(cp => cp.LawyerName).HasMaxLength(200);
+        builder.Property(cp => cp.LawyerPhone).HasMaxLength(30);
         builder.Property(cp => cp.Notes).HasMaxLength(1000);
 
         builder.HasOne(cp => cp.Case)

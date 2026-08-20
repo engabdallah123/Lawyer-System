@@ -9,65 +9,85 @@
 </div>
 
 <MudNavMenu Bordered="false" Rounded="true" Margin="Margin.Dense" Class="pa-2">
-    <MudText Typo="Typo.caption" Class="px-3 pt-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
-        الرئيسية
-    </MudText>
-
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" IconColor="Color.Primary">
-        لوحة القيادة والمتابعة
+    
+    <!-- 🏠 لوحة التحكم الرئيسية -->
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" IconColor="Color.Primary" OnClick="HandleItemClick">
+        لوحة التحكم الرئيسية
     </MudNavLink>
 
-    <MudText Typo="Typo.caption" Class="px-3 pt-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
-        القضايا والعمليات القانونية
-    </MudText>
+    <MudDivider Class="my-2" />
 
-    <MudNavLink Href="clients" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.People" IconColor="Color.Info">
-        سجل الموكلين (أفراد / شركات)
-    </MudNavLink>
+    <!-- ⚖️ مجموعة القضايا والجلسات (قابلة للتوسع) -->
+    <MudNavGroup Title="القضايا والعمليات القضائية" Icon="@Icons.Material.Filled.Gavel" IconColor="Color.Warning" Expanded="true">
+        <MudNavLink Href="cases" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FolderSpecial" IconColor="Color.Warning" OnClick="HandleItemClick">
+            ملفات القضايا والدعاوى
+        </MudNavLink>
 
-    <MudNavLink Href="cases" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Gavel" IconColor="Color.Warning">
-        ملفات القضايا والدعاوى
-    </MudNavLink>
+        <MudNavLink Href="hearings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth" IconColor="Color.Error" OnClick="HandleItemClick">
+            تقويم وجلسات المحاكم
+        </MudNavLink>
 
-    <MudNavLink Href="hearings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.CalendarMonth" IconColor="Color.Error">
-        تقويم وجلسات المحاكم
-    </MudNavLink>
+        <MudNavLink Href="power-of-attorney" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assignment" IconColor="Color.Secondary" OnClick="HandleItemClick">
+            التوكيلات والتفويضات
+        </MudNavLink>
+    </MudNavGroup>
 
-    <MudNavLink Href="consultations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Forum" IconColor="Color.Tertiary">
-        الاستشارات القانونية
-    </MudNavLink>
+    <!-- 👥 مجموعة الموكلين والخدمات (قابلة للتوسع) -->
+    <MudNavGroup Title="إدارة الموكلين والعملاء" Icon="@Icons.Material.Filled.People" IconColor="Color.Info" Expanded="false">
+        <MudNavLink Href="clients" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.PersonSearch" IconColor="Color.Info" OnClick="HandleItemClick">
+            سجل الموكلين (أفراد / شركات)
+        </MudNavLink>
 
-    <MudNavLink Href="power-of-attorney" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assignment" IconColor="Color.Secondary">
-        التوكيلات والتفويضات
-    </MudNavLink>
+        <MudNavLink Href="consultations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Forum" IconColor="Color.Tertiary" OnClick="HandleItemClick">
+            الاستشارات القانونية
+        </MudNavLink>
+    </MudNavGroup>
 
-    <MudText Typo="Typo.caption" Class="px-3 pt-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
-        المالية والأرشيف
-    </MudText>
+    <!-- 💰 مجموعة الشئون المالية (قابلة للتوسع) -->
+    <MudNavGroup Title="الشئون المالية والفواتير" Icon="@Icons.Material.Filled.AccountBalanceWallet" IconColor="Color.Success" Expanded="false">
+        <MudNavLink Href="finance" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong" IconColor="Color.Success" OnClick="HandleItemClick">
+            الشؤون المالية والتحصيل
+        </MudNavLink>
+    </MudNavGroup>
 
-    <MudNavLink Href="finance" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet" IconColor="Color.Success">
-        الشؤون المالية والتحصيل
-    </MudNavLink>
+    <!-- 📁 مجموعة الأرشيف والمهام (قابلة للتوسع) -->
+    <MudNavGroup Title="الأرشيف والمهام والإشعارات" Icon="@Icons.Material.Filled.FolderCopy" IconColor="Color.Default" Expanded="false">
+        <MudNavLink Href="documents" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Description" IconColor="Color.Default" OnClick="HandleItemClick">
+            الأرشيف والمستندات
+        </MudNavLink>
 
-    <MudNavLink Href="documents" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.FolderCopy" IconColor="Color.Default">
-        الأرشيف والمستندات
-    </MudNavLink>
+        <MudNavLink Href="tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Checklist" IconColor="Color.Info" OnClick="HandleItemClick">
+            المهام والمتابعات
+        </MudNavLink>
 
-    <MudNavLink Href="tasks" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Checklist" IconColor="Color.Info">
-        المهام والمتابعات
-    </MudNavLink>
+        <MudNavLink Href="notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications" IconColor="Color.Warning" OnClick="HandleItemClick">
+            مركز الإشعارات والتنبيهات
+        </MudNavLink>
 
-    <MudNavLink Href="notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications" IconColor="Color.Warning">
-        مركز الإشعارات والتنبيهات
-    </MudNavLink>
+        <MudNavLink Href="reports" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Assessment" IconColor="Color.Primary" OnClick="HandleItemClick">
+            التقارير والإحصائيات
+        </MudNavLink>
+    </MudNavGroup>
 
-    <MudDivider Class="my-3" />
+    <MudDivider Class="my-2" />
 
-    <MudText Typo="Typo.caption" Class="px-3 pb-1 fw-bold text-secondary text-uppercase d-block" Style="font-size: 0.7rem; letter-spacing: 0.5px;">
-        النظام والضبط
-    </MudText>
+    <!-- ⚙️ مجموعة ضبط النظام (قابلة للتوسع) -->
+    <MudNavGroup Title="إدارة النظام والضبط" Icon="@Icons.Material.Filled.AdminPanelSettings" IconColor="Color.Secondary" Expanded="false">
+        <MudNavLink Href="users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ManageAccounts" IconColor="Color.Default" OnClick="HandleItemClick">
+            إدارة المستخدمين والصلاحيات
+        </MudNavLink>
+    </MudNavGroup>
 
-    <MudNavLink Href="users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ManageAccounts" IconColor="Color.Default">
-        إدارة المستخدمين والصلاحيات
-    </MudNavLink>
 </MudNavMenu>
+
+@code {
+    [Parameter] public EventCallback OnItemClick { get; set; }
+
+    private async Task HandleItemClick()
+    {
+        if (OnItemClick.HasDelegate)
+        {
+            await OnItemClick.InvokeAsync();
+        }
+    }
+}

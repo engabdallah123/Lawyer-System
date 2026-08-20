@@ -12,13 +12,18 @@
 
 <!-- Header & Mark All Read Button -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
-    <div>
-        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
-            مركز التنبيهات والإشعارات 🔔
-        </MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            تنبيهات الجلسات، المهام المستحقة، الفواتير، ومواعيد انتهاء الوكالات الشرعية
-        </MudText>
+    <div class="d-flex align-center gap-3">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
+            <MudIcon Icon="@Icons.Material.Filled.NotificationsActive" Style="color: #c5a059;" />
+        </MudAvatar>
+        <div>
+            <MudText Typo="Typo.h5" Class="fw-extrabold text-primary" Style="letter-spacing: -0.3px;">
+                مركز التنبيهات والإشعارات
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                تنبيهات الجلسات، المهام المستحقة، الفواتير، ومواعيد انتهاء الوكالات الشرعية
+            </MudText>
+        </div>
     </div>
 
     @if (_notifications.Any(n => !n.IsRead))

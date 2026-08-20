@@ -15,13 +15,18 @@
 
 <!-- Header & Add Task Button -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
-    <div>
-        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
-            المهام والمتابعات القانونية 📋
-        </MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            توزيع الأعمال، متابعة اللوائح والمواعيد، قياس إنجاز فريق العمل
-        </MudText>
+    <div class="d-flex align-center gap-3">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
+            <MudIcon Icon="@Icons.Material.Filled.Checklist" Style="color: #c5a059;" />
+        </MudAvatar>
+        <div>
+            <MudText Typo="Typo.h5" Class="fw-extrabold text-primary" Style="letter-spacing: -0.3px;">
+                المهام والمتابعات القانونية
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                توزيع الأعمال، متابعة اللوائح والمواعيد، قياس إنجاز فريق العمل
+            </MudText>
+        </div>
     </div>
 
     <MudButton Variant="Variant.Filled"

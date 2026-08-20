@@ -104,12 +104,9 @@ internal sealed class GetInvoiceByIdQueryHandler : IQueryHandler<GetInvoiceByIdQ
         var items = await connection.QueryAsync<InvoiceItemDto>(itemsSql, new { Id = request.Id });
         var payments = await connection.QueryAsync<PaymentDto>(paymentsSql, new { Id = request.Id });
 
-        var fullInvoice = invoice with
-        {
-            Items = items,
-            Payments = payments
-        };
+        invoice.Items = items;
+        invoice.Payments = payments;
 
-        return Result<InvoiceDetailsDto>.Success(fullInvoice);
+        return Result<InvoiceDetailsDto>.Success(invoice);
     }
 }

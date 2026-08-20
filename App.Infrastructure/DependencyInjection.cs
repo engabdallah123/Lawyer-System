@@ -39,6 +39,7 @@ namespace App.Infrastructure
 
             services.AddScoped<IIdentityService, IdentityService>();
             services.AddScoped<IAppUnitOfWork, AppUnitOfWork>();
+            services.AddScoped<App.Application.Finance.Services.IInvoicePdfService, App.Infrastructure.Reports.InvoicePdfService>();
 
             return services;
         }

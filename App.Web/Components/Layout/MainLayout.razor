@@ -10,119 +10,225 @@
 
 <MudRTLProvider RightToLeft="true">
     <MudLayout>
-        <!-- Top Executive AppBar (Fixed & Static Position) -->
-        <MudAppBar Elevation="1" Fixed="true" Dense="false" Class="px-4 appbar-luxury">
-            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Class="me-2" />
-            
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-2">
-                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Medium" Class="shadow-sm">
-                    <MudIcon Icon="@Icons.Material.Filled.Balance" Size="Size.Medium" Style="color: #c5a059;" />
-                </MudAvatar>
-                <div>
-                    <MudText Typo="Typo.h6" Class="fw-bold lh-sm" Style="letter-spacing: -0.3px;">نظام المحاماة الذكي</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-sm-block">المنظومة المتكاملة لإدارة مكاتب الاستشارات</MudText>
+        @if (!AuthStateProvider.IsAuthenticated)
+        {
+            <!-- Unauthenticated Top Executive AppBar (Landing Page Navbar Only) -->
+            <MudAppBar Elevation="1" Fixed="true" Dense="false" Class="px-4 appbar-luxury">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <img src="/Images/logo.png" alt="الشعار الرسمى" style="height: 42px; width: auto; object-fit: contain;" />
+                    <div class="d-none d-md-block">
+                        <MudText Typo="Typo.h6" Class="fw-extrabold lh-sm" Style="letter-spacing: -0.3px;">مكتب المستشار / علاء خالد علام</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">Alaa Khaled Allam — المحاماة والاستشارات القانونية</MudText>
+                    </div>
+                </MudStack>
+
+                <MudSpacer />
+
+                <!-- Desktop Actions -->
+                <div class="d-none d-md-flex align-center gap-3">
+                    <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
+                        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                                       Color="Color.Warning" OnClick="@ToggleTheme" Class="mx-1" />
+                    </MudTooltip>
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Medium"
+                               StartIcon="@Icons.Material.Filled.Login"
+                               Href="/login"
+                               Class="ms-2 btn-gold-gradient rounded-pill px-5 py-2">
+                        تسجيل الدخول
+                    </MudButton>
                 </div>
-            </MudStack>
 
-            <MudSpacer />
+                <!-- Mobile Hamburger Menu Button -->
+                <div class="d-flex d-md-none align-center gap-1">
+                    <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
+                        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                                       Color="Color.Warning" OnClick="@ToggleTheme" Size="Size.Small" />
+                    </MudTooltip>
 
-            <!-- Quick Global Search Input Pill -->
-            <MudTextField T="string" Placeholder="بحث شامل (موكل، قضية، جلسة، عقد، مستند...)" Adornment="Adornment.Start" 
-                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
-                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="d-none d-md-flex mx-4 search-input-pill" Style="max-width: 420px; width: 100%;" />
+                    <MudIconButton Icon="@(_mobileMenuOpen ? Icons.Material.Filled.Close : Icons.Material.Filled.Menu)"
+                                   Color="Color.Inherit"
+                                   OnClick="@ToggleMobileMenu"
+                                   Class="ms-1" />
+                </div>
+            </MudAppBar>
 
-            <!-- Dark/Light Theme Toggle -->
-            <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
-                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
-                               Color="Color.Warning" OnClick="@ToggleTheme" Class="mx-1" />
-            </MudTooltip>
-
-            <!-- Notifications Drawer Menu -->
-            <MudBadge Dot="true" Color="Color.Error" Overlap="true" Class="mx-2">
-                <MudMenu Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
-                    <MudMenuItem Class="py-2 px-3">
+            <!-- Unauthenticated Mobile Slide-Down Menu (Top to Bottom) -->
+            @if (_mobileMenuOpen)
+            {
+                <div class="mobile-dropdown-overlay" @onclick="CloseMobileMenu"></div>
+                <div class="mobile-dropdown-menu">
+                    <div class="d-flex align-center justify-space-between mb-3 pb-2" style="border-bottom: 1px solid rgba(197, 160, 89, 0.2);">
                         <div class="d-flex align-center gap-2">
-                            <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Warning" Size="Size.Small" />
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="fw-bold">جلسة محكمة قادمة</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">الدائرة التجارية الرابعة - غداً 10:00 ص</MudText>
-                            </div>
+                            <img src="/Images/logo.png" alt="Logo" style="height: 32px;" />
+                            <MudText Typo="Typo.subtitle2" Class="fw-bold">مكتب المستشار علاء خالد علام</MudText>
                         </div>
-                    </MudMenuItem>
-                    <MudDivider />
-                    <MudMenuItem Class="py-2 px-3">
-                        <div class="d-flex align-center gap-2">
-                            <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" Size="Size.Small" />
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="fw-bold">انتهاء سريان توكيل</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">توكيل الموكل أحمد المنصوري ينتهي خلال 7 أيام</MudText>
-                            </div>
-                        </div>
-                    </MudMenuItem>
-                    <MudDivider />
-                    <MudMenuItem Class="text-center py-2">
-                        <MudLink Href="/notifications" Typo="Typo.caption" Color="Color.Primary" Class="fw-bold">عرض كافة الإشعارات والتنبيهات</MudLink>
-                    </MudMenuItem>
-                </MudMenu>
-            </MudBadge>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CloseMobileMenu" />
+                    </div>
 
-            <!-- User Profile Avatar Dropdown -->
-            @if (AuthStateProvider.IsAuthenticated)
+                    <MudStack Spacing="3" Class="py-2">
+                        <MudButton Variant="Variant.Filled"
+                                   FullWidth="true"
+                                   Size="Size.Large"
+                                   StartIcon="@Icons.Material.Filled.Login"
+                                   Href="/login"
+                                   OnClick="CloseMobileMenu"
+                                   Class="btn-gold-gradient rounded-pill py-3">
+                            تسجيل الدخول إلى المنظومة
+                        </MudButton>
+
+                        <div class="d-flex align-center justify-space-between px-2 py-2 rounded-lg" style="background: rgba(197, 160, 89, 0.08);">
+                            <MudText Typo="Typo.body2" Class="fw-bold">تبديل ثيم المظهر</MudText>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Warning"
+                                       Size="Size.Small"
+                                       StartIcon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                                       OnClick="@ToggleTheme">
+                                @(_isDarkMode ? "فاتح" : "داكن")
+                            </MudButton>
+                        </div>
+                    </MudStack>
+                </div>
+            }
+
+            <!-- Main Content Container for Unauthenticated Landing Page -->
+            <MudMainContent Class="pa-0" Style="background-color: var(--mud-palette-background); min-height: 100vh; padding-top: 68px !important;">
+                @Body
+            </MudMainContent>
+        }
+        else
+        {
+            <!-- Authenticated Full Top Executive AppBar (Dashboard Layout) -->
+            <MudAppBar Elevation="1" Fixed="true" Dense="false" Class="px-3 px-md-4 appbar-luxury">
+                <!-- Desktop Sidebar Toggle Button -->
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" Class="d-none d-md-flex me-2" />
+
+                <!-- Mobile Slide-Down Menu Toggle Button -->
+                <MudIconButton Icon="@(_mobileMenuOpen ? Icons.Material.Filled.Close : Icons.Material.Filled.Menu)" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleMobileMenu" Class="d-flex d-md-none me-1" />
+
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="ms-1 ms-md-2">
+                    <img src="/Images/logo.png" alt="الشعار الرسمى" style="height: 38px; width: auto; object-fit: contain;" />
+                    <div class="d-none d-md-block">
+                        <MudText Typo="Typo.h6" Class="fw-bold lh-sm" Style="letter-spacing: -0.3px;">نظام المحاماة الذكي</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">مكتب المستشار علاء خالد علام</MudText>
+                    </div>
+                </MudStack>
+
+                <MudSpacer />
+
+                <!-- Quick Global Search Input Pill (Desktop Only) -->
+                <MudTextField T="string" Placeholder="بحث شامل (موكل، قضية، جلسة، عقد...)" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="d-none d-md-flex mx-4 search-input-pill" Style="max-width: 420px; width: 100%;" />
+
+                <!-- Dark/Light Theme Toggle -->
+                <MudTooltip Text="@(_isDarkMode ? "الوضع الفاتح" : "الوضع الداكن")">
+                    <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                                   Color="Color.Warning" OnClick="@ToggleTheme" Class="mx-1" Size="Size.Small" />
+                </MudTooltip>
+
+                <!-- Notifications Menu -->
+                <MudBadge Dot="true" Color="Color.Error" Overlap="true" Class="mx-1">
+                    <MudMenu Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft">
+                        <MudMenuItem Class="py-2 px-3">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Gavel" Color="Color.Warning" Size="Size.Small" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle2" Class="fw-bold">جلسة محكمة قادمة</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">الدائرة التجارية الرابعة - غداً 10:00 ص</MudText>
+                                </div>
+                            </div>
+                        </MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Class="py-2 px-3">
+                            <div class="d-flex align-center gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Color="Color.Info" Size="Size.Small" />
+                                <div>
+                                    <MudText Typo="Typo.subtitle2" Class="fw-bold">انتهاء سريان توكيل</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">توكيل الموكل أحمد المنصوري ينتهي خلال 7 أيام</MudText>
+                                </div>
+                            </div>
+                        </MudMenuItem>
+                        <MudDivider />
+                        <MudMenuItem Class="text-center py-2">
+                            <MudLink Href="/notifications" Typo="Typo.caption" Color="Color.Primary" Class="fw-bold">عرض كافة الإشعارات والتنبيهات</MudLink>
+                        </MudMenuItem>
+                    </MudMenu>
+                </MudBadge>
+
+                <!-- User Profile Dropdown Menu with Guaranteed Click Handler -->
+                @{
+                    var currentUser = AuthStateProvider.CurrentUser!;
+                    <MudMenu @ref="_userMenu" AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Class="ms-1">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Text"
+                                       Color="Color.Inherit"
+                                       EndIcon="@Icons.Material.Filled.KeyboardArrowDown"
+                                       OnClick="OpenUserMenu"
+                                       Class="px-2 px-sm-3 py-1 rounded-pill surface-hover">
+                                <div class="text-right">
+                                    <MudText Typo="Typo.subtitle2" Class="fw-bold lh-sm">@currentUser.FullName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-sm-block">@AppRoles.GetArabicName(currentUser.Role)</MudText>
+                                </div>
+                            </MudButton>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <div class="px-4 py-3 text-center" style="background: rgba(197, 160, 89, 0.08); border-bottom: 1px solid rgba(197, 160, 89, 0.2);">
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold">@currentUser.FullName</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@currentUser.Email</MudText>
+                                <div class="mt-2">
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Style="font-weight: 700;">
+                                        @AppRoles.GetArabicName(currentUser.Role)
+                                    </MudChip>
+                                </div>
+                            </div>
+                            <MudMenuItem Icon="@Icons.Material.Filled.ManageAccounts" Href="/users">إدارة المستخدمين والصلاحيات</MudMenuItem>
+                            <MudDivider />
+                            <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
+                                <span class="text-error fw-bold">تسجيل الخروج</span>
+                            </MudMenuItem>
+                        </ChildContent>
+                    </MudMenu>
+                }
+            </MudAppBar>
+
+            <!-- Authenticated Mobile Slide-Down Dropdown Menu (Top to Bottom Full Width) -->
+            @if (_mobileMenuOpen)
             {
                 var currentUser = AuthStateProvider.CurrentUser!;
-                <MudMenu AnchorOrigin="Origin.BottomLeft" TransformOrigin="Origin.TopLeft" Class="ms-2">
-                    <ActivatorContent>
-                        <div class="d-flex align-center gap-2 px-2 py-1 rounded-pill surface-hover" style="cursor: pointer;">
-                            <MudAvatar Color="Color.Primary" Size="Size.Medium" Style="border: 2px solid #c5a059;">
-                                @(string.IsNullOrEmpty(currentUser.FullName) ? "U" : currentUser.FullName.Substring(0, 1))
-                            </MudAvatar>
-                            <div class="d-none d-lg-block text-right">
-                                <MudText Typo="Typo.subtitle2" Class="fw-bold lh-sm">@currentUser.FullName</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@AppRoles.GetArabicName(currentUser.Role)</MudText>
-                            </div>
-                            <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" Color="Color.Secondary" />
-                        </div>
-                    </ActivatorContent>
-                    <ChildContent>
-                        <div class="px-4 py-3 text-center" style="background: rgba(197, 160, 89, 0.08); border-bottom: 1px solid rgba(197, 160, 89, 0.2);">
-                            <MudText Typo="Typo.subtitle2" Class="fw-bold">@currentUser.FullName</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@currentUser.Email</MudText>
-                            <div class="mt-2">
-                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled" Style="font-weight: 700;">
-                                    @AppRoles.GetArabicName(currentUser.Role)
-                                </MudChip>
+                <div class="mobile-dropdown-overlay" @onclick="CloseMobileMenu"></div>
+                <div class="mobile-dropdown-menu shadow-2xl">
+                    <!-- Mobile Menu Header -->
+                    <div class="d-flex align-center justify-space-between mb-3 pb-2" style="border-bottom: 1px solid rgba(197, 160, 89, 0.2);">
+                        <div class="d-flex align-center gap-2">
+                            <img src="/Images/logo.png" alt="Logo" style="height: 34px;" />
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="fw-bold lh-sm">نظام المحاماة الذكي</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">مكتب المستشار علاء خالد علام</MudText>
                             </div>
                         </div>
-                        <MudMenuItem Icon="@Icons.Material.Filled.ManageAccounts" Href="/users">إدارة المستخدمين والصلاحيات</MudMenuItem>
-                        <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
-                            <span class="text-error fw-bold">تسجيل الخروج</span>
-                        </MudMenuItem>
-                    </ChildContent>
-                </MudMenu>
-            }
-            else
-            {
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Size="Size.Medium"
-                           StartIcon="@Icons.Material.Filled.Login"
-                           Href="/login"
-                           Class="ms-2 btn-gold-gradient">
-                    تسجيل الدخول
-                </MudButton>
-            }
-        </MudAppBar>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CloseMobileMenu" />
+                    </div>
 
-        <!-- Side Navigation Drawer (Static Sidebar) -->
-        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false" Class="drawer-luxury">
-            <NavMenu />
-        </MudDrawer>
+                    <!-- Navigation Expandable Groups List for Mobile (Auto-closes on item click) -->
+                    <div class="py-1">
+                        <NavMenu OnItemClick="CloseMobileMenu" />
+                    </div>
+                </div>
+            }
 
-        <!-- Main Workspace Area with Proper Top & Right Margins -->
-        <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh; padding-top: 88px !important;">
-            @Body
-        </MudMainContent>
+            <!-- Side Navigation Drawer (Desktop Sidebar) -->
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="DrawerVariant.Responsive" OpenMiniOnHover="false" Class="drawer-luxury d-none d-md-block">
+                <NavMenu />
+            </MudDrawer>
+
+            <!-- Main Workspace Area -->
+            <MudMainContent Class="pa-4 pa-md-6" Style="background-color: var(--mud-palette-background); min-height: 100vh; padding-top: 88px !important;">
+                @Body
+            </MudMainContent>
+        }
     </MudLayout>
 </MudRTLProvider>
 
@@ -133,8 +239,18 @@
 </div>
 
 @code {
+    private MudMenu? _userMenu;
     private bool _drawerOpen = true;
     private bool _isDarkMode = false;
+    private bool _mobileMenuOpen = false;
+
+    private async Task OpenUserMenu()
+    {
+        if (_userMenu != null)
+        {
+            await _userMenu.OpenMenuAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        }
+    }
 
     protected override void OnInitialized()
     {
@@ -149,6 +265,16 @@
     private void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleMobileMenu()
+    {
+        _mobileMenuOpen = !_mobileMenuOpen;
+    }
+
+    private void CloseMobileMenu()
+    {
+        _mobileMenuOpen = false;
     }
 
     private void ToggleTheme()

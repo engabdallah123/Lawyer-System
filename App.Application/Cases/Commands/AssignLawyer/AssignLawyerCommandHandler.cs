@@ -1,6 +1,8 @@
 using App.Domain;
 using App.Domain.Cases.Entities;
 using App.Domain.Cases.Errors;
+using Dapper;
+using Shared.Application.Database;
 using Shared.Application.Messaging;
 using Shared.Domain;
 
@@ -9,10 +11,12 @@ namespace App.Application.Cases.Commands.AssignLawyer;
 internal sealed class AssignLawyerCommandHandler : ICommandHandler<AssignLawyerCommand, Guid>
 {
     private readonly IAppUnitOfWork _unitOfWork;
+    private readonly ISqlConnectionFactory _sqlConnectionFactory;
 
-    public AssignLawyerCommandHandler(IAppUnitOfWork unitOfWork)
+    public AssignLawyerCommandHandler(IAppUnitOfWork unitOfWork, ISqlConnectionFactory sqlConnectionFactory)
     {
         _unitOfWork = unitOfWork;
+        _sqlConnectionFactory = sqlConnectionFactory;
     }
 
     public async Task<Result<Guid>> Handle(AssignLawyerCommand request, CancellationToken cancellationToken)
@@ -33,10 +37,25 @@ internal sealed class AssignLawyerCommandHandler : ICommandHandler<AssignLawyerC
 
         await _unitOfWork.CaseAssignments.AddAsync(assignmentResult.Value!, cancellationToken);
 
+        // Fetch lawyer's full name
+        string lawyerName = request.UserId;
+        try
+        {
+            using var connection = _sqlConnectionFactory.CreateConnection();
+            var name = await connection.ExecuteScalarAsync<string>(
+                "SELECT ISNULL(NULLIF(FullName, ''), UserName) FROM AspNetUsers WHERE Id = @UserId",
+                new { request.UserId });
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                lawyerName = name;
+            }
+        }
+        catch { }
+
         var timelineResult = CaseTimeline.Create(
             request.CaseId,
-            "تعيين محامٍ",
-            $"تم تعيين المستخدم '{request.UserId}' بدور '{request.RoleInCase}'",
+            "إسناد محامٍ للملف",
+            $"تم إسناد القضية إلى المحامي '{lawyerName}' بدور '{request.RoleInCase}'",
             false,
             request.AssignedBy);
 

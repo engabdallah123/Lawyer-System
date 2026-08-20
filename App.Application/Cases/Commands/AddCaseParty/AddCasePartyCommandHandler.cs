@@ -25,8 +25,14 @@ internal sealed class AddCasePartyCommandHandler : ICommandHandler<AddCasePartyC
             request.CaseId,
             request.ClientId,
             request.PartyName,
+            request.PartyType,
             request.PartyRole,
             request.IsMainClient,
+            request.Address,
+            request.Phone,
+            request.Email,
+            request.LawyerName,
+            request.LawyerPhone,
             request.Notes);
 
         if (partyResult.IsFailure)

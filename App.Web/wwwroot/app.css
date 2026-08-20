@@ -91,8 +91,7 @@ html, body {
 }
 
 .glass-card:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg) !important;
+    transform: none !important;
     border-color: rgba(197, 160, 89, 0.3) !important;
 }
 
@@ -103,48 +102,143 @@ html, body {
 }
 
 .mud-theme-dark .glass-card:hover {
+    transform: none !important;
     border-color: rgba(212, 175, 55, 0.4) !important;
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Header Avatar Luxury Styling (Soft Gold Tint, No Bright Blue in Dark Mode) */
+.header-avatar {
+    background: rgba(197, 160, 89, 0.12) !important;
+    border: 1px solid rgba(197, 160, 89, 0.3) !important;
+}
+
+.mud-theme-dark .header-avatar {
+    background: rgba(197, 160, 89, 0.18) !important;
+    border: 1px solid rgba(212, 175, 55, 0.4) !important;
+}
+
+/* Table Row Hover Pop-Out Effect */
+.mud-table-row {
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.mud-table-row:hover {
+    background-color: rgba(197, 160, 89, 0.08) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1) !important;
+    position: relative;
+    z-index: 2;
+}
+
+.mud-theme-dark .mud-table-row:hover {
+    background-color: rgba(197, 160, 89, 0.16) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
 }
 
 /* ========================================================= */
-/* RTL Form Inputs & Label Focus Alignment Overrides         */
-/* Fixes MudBlazor Outlined label jumping left on focus      */
+/* RTL Form Inputs & Floating Label Alignment (CSS Solution) */
 /* ========================================================= */
+.mud-input-control {
+    position: relative !important;
+    direction: rtl !important;
+    margin-top: 6px !important;
+    margin-bottom: 6px !important;
+}
+
+/* 1. Base Label (Inside the input field when empty / unfocused) */
 .mud-input-label-outlined {
-    transform-origin: top right !important;
+    position: absolute !important;
+    top: 50% !important;
     right: 14px !important;
     left: auto !important;
-    text-align: right !important;
+    transform: translateY(-50%) scale(1) !important;
+    transform-origin: top right !important;
+    pointer-events: none !important;
+    background: transparent !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
+    color: var(--mud-palette-text-secondary) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    z-index: 2 !important;
+    max-width: calc(100% - 28px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.mud-input-label-inputlabel {
-    transform-origin: top right !important;
-    right: 14px !important;
+/* 2. Floating Label (When focused OR filled with value OR shrunk) - Applied to both inputs and textareas */
+.mud-input-label-outlined.mud-input-label-inputlabel,
+.mud-input-label-outlined.mud-shrink,
+.mud-input-label-outlined.mud-input-label-shrink,
+.mud-input-control.mud-input-shrink .mud-input-label-outlined,
+.mud-input-control:has(.mud-input-shrink) .mud-input-label-outlined,
+.mud-input-control:has(.mud-shrink) .mud-input-label-outlined,
+.mud-input.mud-input-shrink ~ .mud-input-label-outlined,
+.mud-input-control:focus-within .mud-input-label-outlined,
+.mud-input-control.mud-input-focused .mud-input-label-outlined,
+.mud-input-control:has(textarea):focus-within .mud-input-label-outlined,
+.mud-input-control:has(input):focus-within .mud-input-label-outlined {
+    top: 0 !important;
+    right: 12px !important;
     left: auto !important;
-    text-align: right !important;
+    transform: translateY(-50%) scale(0.85) !important;
+    transform-origin: top right !important;
+    background-color: var(--mud-palette-surface) !important;
+    padding: 0 6px !important;
+    border-radius: 4px !important;
+    z-index: 5 !important;
+    color: var(--mud-palette-primary) !important;
+    font-weight: 700 !important;
 }
 
-.mud-input-label-animated {
-    transform-origin: top right !important;
+/* Dark Theme Floating Label Background & Color */
+.mud-theme-dark .mud-input-label-outlined.mud-input-label-inputlabel,
+.mud-theme-dark .mud-input-label-outlined.mud-shrink,
+.mud-theme-dark .mud-input-label-outlined.mud-input-label-shrink,
+.mud-theme-dark .mud-input-control.mud-input-shrink .mud-input-label-outlined,
+.mud-theme-dark .mud-input-control:has(.mud-input-shrink) .mud-input-label-outlined,
+.mud-theme-dark .mud-input-control:has(.mud-shrink) .mud-input-label-outlined,
+.mud-theme-dark .mud-input.mud-input-shrink ~ .mud-input-label-outlined,
+.mud-theme-dark .mud-input-control:focus-within .mud-input-label-outlined,
+.mud-theme-dark .mud-input-control:has(textarea):focus-within .mud-input-label-outlined,
+.mud-theme-dark .mud-input-control:has(input):focus-within .mud-input-label-outlined {
+    background-color: #1e293b !important;
+    color: #d4af37 !important;
+}
+
+/* Ensure Outlined border is 100% complete and unbroken before focus */
+.mud-input-outlined-border legend {
+    display: none !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 .mud-input-outlined-border {
-    text-align: right !important;
+    border-style: solid !important;
 }
 
-.mud-input-outlined-border legend {
-    text-align: right !important;
-    margin-right: 10px !important;
-    margin-left: auto !important;
-    float: right !important;
+/* Multiline Textarea Label Initial Position (Only when NOT focused and NOT filled) */
+.mud-input-control:has(textarea):not(:focus-within) .mud-input-label-outlined:not(.mud-input-label-inputlabel):not(.mud-shrink):not(.mud-input-label-shrink) {
+    top: 20px !important;
+    transform: translateY(-50%) scale(1) !important;
 }
 
-.mud-input-control {
-    margin-top: 4px;
-    margin-bottom: 4px;
+/* Start Adornment Label Offset (Only when NOT focused and NOT filled) */
+.mud-input-control:has(.mud-input-adornment-start):not(:focus-within) .mud-input-label-outlined:not(.mud-input-label-inputlabel):not(.mud-shrink):not(.mud-input-label-shrink) {
+    right: 42px !important;
 }
 
+.mud-input-control:has(.mud-input-adornment-start) .mud-input-label-outlined.mud-input-label-inputlabel,
+.mud-input-control:has(.mud-input-adornment-start) .mud-input-label-outlined.mud-shrink,
+.mud-input-control:has(.mud-input-adornment-start) .mud-input-label-outlined.mud-input-label-shrink,
+.mud-input-control:has(.mud-input-adornment-start):focus-within .mud-input-label-outlined,
+.mud-input-control:has(.mud-input-adornment-start).mud-input-shrink .mud-input-label-outlined {
+    right: 12px !important;
+}
+
+/* RTL Input & Select Text Alignments */
 .mud-input > input.mud-input-root-outlined,
 .mud-input > textarea.mud-input-root-outlined {
     text-align: right !important;
@@ -378,34 +472,40 @@ html, body {
     }
 }
 
-/* Login Page Background Glow */
+/* Login Page Background Container & Card - Theme & Mobile Responsive */
 .login-bg-container {
-    min-height: 100vh;
-    background: radial-gradient(circle at 50% 30%, #1e293b 0%, #0f172a 70%, #080c14 100%);
+    min-height: calc(100vh - 68px);
+    background: var(--mud-palette-background);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem;
+    padding: 1.5rem 1rem;
 }
 
 .login-bg-container::before {
     content: '';
     position: absolute;
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(197, 160, 89, 0.2) 0%, transparent 70%);
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, rgba(197, 160, 89, 0.18) 0%, transparent 70%);
     top: 20%;
-    left: 25%;
-    filter: blur(50px);
+    left: 20%;
+    filter: blur(60px);
     pointer-events: none;
 }
 
 .login-card {
-    background: rgba(30, 41, 59, 0.85) !important;
+    background: var(--mud-palette-surface) !important;
     backdrop-filter: blur(20px) !important;
     border: 1px solid rgba(197, 160, 89, 0.3) !important;
     border-radius: var(--radius-lg) !important;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12) !important;
+    transition: var(--transition-smooth) !important;
+}
+
+.mud-theme-dark .login-card {
+    background: rgba(21, 29, 42, 0.95) !important;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
 }
 
@@ -436,4 +536,476 @@ html, body {
     position: absolute;
     left: 1rem;
     top: 0.8rem;
+}
+
+/* ========================================================= */
+/* Landing Page & Glowing Orbit Train Light Animations        */
+/* ========================================================= */
+
+/* Outer Container with Soft Background Glow */
+.glowing-train-wrapper {
+    position: relative;
+    display: inline-block;
+    padding: 8px;
+    border-radius: 28px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+    isolation: isolate;
+}
+
+.mud-theme-dark .glowing-train-wrapper {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+@property --train-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+/* Orbiting Train Light Conic Beam (Gradient Angle Animation - 100% Zero Box Motion & Zero Jitter) */
+.glowing-train-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: conic-gradient(
+        from var(--train-angle, 0deg),
+        transparent 0deg,
+        transparent 250deg,
+        rgba(197, 160, 89, 0.25) 290deg,
+        #c5a059 330deg,
+        #fff7d6 350deg,
+        #ffffff 360deg
+    );
+    animation: trainGradientRotate 3.5s linear infinite;
+    z-index: 1;
+}
+
+/* Inner Surface Masking (Creates 4px Glowing Border Track) */
+.glowing-train-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 24px;
+    background: var(--mud-palette-surface);
+    z-index: 2;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes trainGradientRotate {
+    0% {
+        --train-angle: 0deg;
+    }
+    100% {
+        --train-angle: 360deg;
+    }
+}
+
+/* Image Container Frame - 100% Rock-Solid Fixed GPU Layer */
+.lawyer-image-frame {
+    position: relative;
+    z-index: 3;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.3);
+    border: 2px solid rgba(197, 160, 89, 0.4);
+    background: #0f172a;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+.lawyer-image-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glowing-train-wrapper:hover .lawyer-image-frame img {
+    transform: scale(1.03);
+}
+
+
+/* Landing Page Hero Container */
+.landing-hero-container {
+    min-height: calc(100vh - 120px);
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+/* Dynamic Quotes Box Styling */
+.quote-card-animated {
+    position: relative;
+    background: rgba(15, 23, 42, 0.04);
+    border-right: 4px solid var(--gold-primary) !important;
+    border-radius: var(--radius-md);
+    padding: 1.75rem 1.75rem 1.5rem 1.75rem;
+    backdrop-filter: blur(10px);
+    transition: all 0.4s ease-in-out;
+}
+
+.mud-theme-dark .quote-card-animated {
+    background: rgba(255, 255, 255, 0.03);
+    border-right: 4px solid #d4af37 !important;
+}
+
+.quote-text-fade {
+    animation: quoteFadeIn 0.5s ease-out forwards;
+}
+
+@keyframes quoteFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Mobile Slide-Down Menu (Top to Bottom) */
+.mobile-dropdown-menu {
+    position: fixed;
+    top: 68px;
+    left: 0;
+    right: 0;
+    background: var(--mud-palette-surface);
+    backdrop-filter: blur(20px);
+    border-bottom: 2px solid var(--gold-primary);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+    z-index: 1200;
+    padding: 1.25rem 1.5rem;
+    animation: slideDownFromTop 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideDownFromTop {
+    0% {
+        opacity: 0;
+        transform: translateY(-100%);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mobile-dropdown-overlay {
+    position: fixed;
+    inset: 0;
+    top: 68px;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 1199;
+}
+
+/* ===================================================================
+   GLOBAL DIALOG & FORM FIXES
+   =================================================================== */
+
+/* Fix: Outlined TextField label clipping on focus (RTL) — 
+   Add top margin to each form field so the floating label has room */
+.mud-dialog .mud-input-control {
+    margin-top: 8px !important;
+    margin-bottom: 4px !important;
+}
+
+/* Fix: Ensure outlined fieldset legend (floating label) has proper spacing */
+.mud-input-outlined .mud-input-outlined-border legend {
+    margin-right: 4px;
+}
+
+/* Fix: Space between dialog title text and X close button */
+.mud-dialog .mud-dialog-title {
+    padding-left: 48px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Fix: Dialog close button proper positioning with gap from title */
+.mud-dialog .mud-dialog-title .mud-button-close,
+.mud-dialog .mud-dialog-title .mud-icon-button {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* Ensure dialog content has enough top padding for first row labels */
+.mud-dialog .mud-dialog-content {
+    padding-top: 16px !important;
+}
+
+/* Fix: First row of form inside dialog needs extra top space */
+.mud-dialog .mud-dialog-content > .mud-form > .mud-grid > .mud-grid-item:first-child .mud-input-control,
+.mud-dialog .mud-dialog-content > .mud-grid > .mud-grid-item:first-child .mud-input-control {
+    margin-top: 14px;
+}
+
+/* ===================================================================
+   PROFESSIONAL CALENDAR GRID STYLES
+   =================================================================== */
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    direction: rtl;
+}
+
+/* Weekday Header Cells */
+.calendar-header-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 4px;
+    border-bottom: 2px solid rgba(197, 160, 89, 0.25);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Day Cells */
+.calendar-cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 85px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: var(--transition-smooth);
+}
+
+.calendar-cell:hover:not(.calendar-cell-empty) {
+    background: rgba(197, 160, 89, 0.06);
+    border-color: rgba(197, 160, 89, 0.15);
+}
+
+.calendar-cell-empty {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Past Days - Dimmed */
+.calendar-cell-past {
+    opacity: 0.45;
+}
+
+.calendar-cell-past .calendar-day-number {
+    color: rgba(150, 150, 150, 0.7);
+}
+
+.calendar-cell-past.calendar-cell-has-hearing {
+    opacity: 0.55;
+}
+
+/* Day Number */
+.calendar-day-number {
+    font-weight: 700;
+    font-size: 0.95rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-bottom: 4px;
+    transition: var(--transition-smooth);
+}
+
+/* Today Highlight */
+.calendar-cell-today {
+    background: rgba(197, 160, 89, 0.08) !important;
+    border-color: rgba(197, 160, 89, 0.35) !important;
+}
+
+.today-number {
+    background: linear-gradient(135deg, #c5a059, #d4af37) !important;
+    color: #ffffff !important;
+    font-weight: 800;
+    box-shadow: 0 2px 10px rgba(197, 160, 89, 0.4);
+}
+
+/* Day With Hearings Highlight */
+.calendar-cell-has-hearing {
+    background: rgba(37, 99, 235, 0.04);
+    border-color: rgba(37, 99, 235, 0.15);
+}
+
+.calendar-cell-has-hearing:hover {
+    background: rgba(37, 99, 235, 0.1) !important;
+    border-color: rgba(37, 99, 235, 0.3) !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+    transform: translateY(-1px);
+}
+
+/* Hearing Dots Row */
+.calendar-hearing-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.hearing-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c5a059, #d4af37);
+    box-shadow: 0 1px 4px rgba(197, 160, 89, 0.5);
+    animation: dotPulse 2s ease-in-out infinite;
+}
+
+.consultation-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 1px 4px rgba(16, 185, 129, 0.5);
+    animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+.calendar-hearing-label {
+    width: 100%;
+    padding: 0 2px;
+    margin-top: 2px;
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Mobile Responsive Calendar */
+@media (max-width: 959.98px) {
+    .calendar-cell {
+        min-height: 55px;
+        padding: 4px 2px;
+    }
+
+    .calendar-day-number {
+        font-size: 0.8rem;
+        width: 26px;
+        height: 26px;
+    }
+
+    .hearing-dot {
+        width: 5px;
+        height: 5px;
+    }
+
+    .calendar-header-cell {
+        padding: 6px 2px;
+    }
+
+    .calendar-grid {
+        gap: 2px;
+    }
+}
+
+@media (max-width: 599.98px) {
+    .calendar-cell {
+        min-height: 42px;
+        padding: 3px 1px;
+    }
+
+    .calendar-day-number {
+        font-size: 0.72rem;
+        width: 22px;
+        height: 22px;
+    }
+
+    .hearing-dot {
+        width: 4px;
+        height: 4px;
+    }
+}
+
+/* Dark Mode Calendar Adjustments */
+.mud-theme-dark .calendar-cell:hover:not(.calendar-cell-empty) {
+    background: rgba(197, 160, 89, 0.12);
+    border-color: rgba(197, 160, 89, 0.3);
+}
+
+.mud-theme-dark .calendar-cell-today {
+    background: rgba(197, 160, 89, 0.15) !important;
+    border-color: rgba(197, 160, 89, 0.5) !important;
+}
+
+.mud-theme-dark .calendar-cell-has-hearing {
+    background: rgba(96, 165, 250, 0.08);
+    border-color: rgba(96, 165, 250, 0.2);
+}
+
+.mud-theme-dark .calendar-cell-has-hearing:hover {
+    background: rgba(96, 165, 250, 0.16) !important;
+    border-color: rgba(96, 165, 250, 0.4) !important;
+}
+
+.mud-theme-dark .calendar-header-cell {
+    border-bottom-color: rgba(197, 160, 89, 0.3);
+}
+
+/* ===================================================================
+   TAB BADGES POSITIONING (RTL) - Elevated & Shifted Left
+   =================================================================== */
+.mud-tabs .mud-tab {
+    padding-left: 34px !important;
+    padding-right: 20px !important;
+    position: relative !important;
+    overflow: visible !important;
+}
+
+.mud-tab .mud-badge,
+.mud-tab-badge {
+    top: -6px !important;
+    left: -14px !important;
+    right: auto !important;
+    transform: none !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    padding: 2px 8px !important;
+    border-radius: 99px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18) !important;
+    white-space: nowrap !important;
+}
+
+.mud-tab-slider {
+    background-color: var(--gold-primary) !important;
+}
+
+/* ===================================================================
+   RESPONSIVE DIALOGS ON MOBILE
+   =================================================================== */
+@media (max-width: 600px) {
+    .mud-dialog {
+        width: calc(100vw - 16px) !important;
+        max-width: calc(100vw - 16px) !important;
+        margin: 8px !important;
+        max-height: 94vh !important;
+        border-radius: 16px !important;
+    }
+
+    .mud-dialog .mud-dialog-title {
+        padding: 12px 14px !important;
+    }
+
+    .mud-dialog .mud-dialog-content {
+        padding: 8px 10px !important;
+    }
+
+    .mud-dialog .mud-dialog-actions {
+        padding: 8px 10px !important;
+    }
 }

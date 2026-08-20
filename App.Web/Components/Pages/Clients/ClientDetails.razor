@@ -1,0 +1,543 @@
+@page "/clients/{Id:guid}"
+@using global::App.Application.Cases.DTOs
+@using global::App.Application.Cases.Queries.GetCases
+@using global::App.Application.Clients.DTOs
+@using global::App.Application.Clients.Queries.GetClientById
+@using global::App.Application.Finance.DTOs
+@using global::App.Application.Finance.Queries.GetFeeAgreements
+@using global::App.Application.Finance.Queries.GetPayments
+@using global::App.Application.PowerOfAttorney.DTOs
+@using global::App.Application.PowerOfAttorney.Queries.GetPowerOfAttorneys
+@using global::App.Domain.Clients.Enums
+@using global::App.Web.Components.Pages.Cases.Dialogs
+@using global::App.Web.Components.Pages.Clients.Dialogs
+@using global::App.Web.Components.Pages.Finance.Dialogs
+@using global::App.Web.Components.Pages.PowerOfAttorney.Dialogs
+@inject IMediator Mediator
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>تفاصيل الموكل | نظام إدارة مكاتب المحاماة</PageTitle>
+
+@if (_isLoading)
+{
+    <div class="d-flex justify-center align-center pa-12">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        <span class="ms-3 fw-bold">جاري تحميل بيانات الموكل وسجل المعاملات...</span>
+    </div>
+}
+else if (_client is null)
+{
+    <div class="pa-12 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Large" Color="Color.Error" Class="mb-3" />
+        <MudText Typo="Typo.h5" Class="fw-bold text-error">عذراً، لم يتم العثور على الموكل المطلوب</MudText>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="mt-4 fw-bold" StartIcon="@Icons.Material.Filled.ArrowBack" Href="clients">
+            العودة لسجل الموكلين
+        </MudButton>
+    </div>
+}
+else
+{
+    <!-- Top Header & Back Button -->
+    <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
+        <div class="d-flex align-center gap-3">
+            <MudIconButton Icon="@Icons.Material.Filled.ArrowForward" Color="Color.Primary" Href="clients" Size="Size.Medium" />
+            <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
+                <MudIcon Icon="@(_client.ClientType == ClientType.Company ? Icons.Material.Filled.Business : Icons.Material.Filled.Person)" Style="color: #c5a059;" />
+            </MudAvatar>
+
+            <div>
+                <div class="d-flex align-center gap-2">
+                    <MudText Typo="Typo.h5" Class="fw-extrabold text-primary">
+                        @(_client.ClientType == ClientType.Company ? _client.CompanyName : _client.FullName)
+                    </MudText>
+                    <MudChip T="string" Size="Size.Small" Color="@(_client.ClientType == ClientType.Company ? Color.Secondary : Color.Primary)" Variant="Variant.Outlined" Class="fw-bold">
+                        @(_client.ClientType == ClientType.Company ? "شركة / مؤسسة" : "شخص طبيعي")
+                    </MudChip>
+                    <MudChip T="string" Size="Size.Small" Color="@(_client.IsActive ? Color.Success : Color.Error)" Variant="Variant.Filled" Class="fw-bold">
+                        @(_client.IsActive ? "نشط" : "معطل")
+                    </MudChip>
+                </div>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-1">
+                    الهاتف: @_client.Phone @(!string.IsNullOrEmpty(_client.Email) ? $" | البريد: {_client.Email}" : "") | المدينة: @(_client.City ?? "غير محددة")
+                </MudText>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Gavel" Class="btn-gold-gradient shadow-sm" OnClick="OpenNewCaseDialog">
+                فتح قضية جديدة
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Payments" Size="Size.Medium" Class="fw-bold" OnClick="OpenNewPaymentDialog">
+                سند قبض
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Edit" Size="Size.Medium" Class="fw-bold" OnClick="OpenEditClientDialog">
+                تعديل البيانات
+            </MudButton>
+        </div>
+    </div>
+
+    <!-- Financial & Operational Key Metrics Row -->
+    <MudGrid Spacing="3" Class="mb-6">
+        <!-- Total Agreements Amount -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">إجمالي التعاقدات والأتعاب</MudText>
+                        <MudText Typo="Typo.h5" Class="fw-extrabold text-primary">@_totalAgreements.ToString("N0") ج.م</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">قيمة العقود الموثقة</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+
+        <!-- Total Paid Amount -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">إجمالي المحصل / المدفوع</MudText>
+                        <MudText Typo="Typo.h5" Class="fw-extrabold text-success">@_totalPaid.ToString("N0") ج.م</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Success">المدفوعات المسددة بالفعل</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+
+        <!-- Remaining Due Balance -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">المتبقي / المديونية المستحقة</MudText>
+                        <MudText Typo="Typo.h5" Class="@($"fw-extrabold {(_remainingBalance > 0 ? "text-error" : "text-success")}")">
+                            @_remainingBalance.ToString("N0") ج.م
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="@(_remainingBalance > 0 ? Color.Error : Color.Success)" Class="fw-bold">
+                            @(_remainingBalance > 0 ? "ذمة مالية قيد السداد" : "الحساب مسدد بالكامل")
+                        </MudText>
+                    </div>
+                    <MudAvatar Color="@(_remainingBalance > 0 ? Color.Error : Color.Success)" Variant="Variant.Outlined" Size="Size.Medium">
+                        <MudIcon Icon="@(_remainingBalance > 0 ? Icons.Material.Filled.PendingActions : Icons.Material.Filled.Verified)" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+
+        <!-- Active Cases & PoAs Count -->
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Elevation="0" Class="glass-card pa-4 border">
+                <div class="d-flex justify-space-between align-center">
+                    <div>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold d-block mb-1">القضايا والتوكيلات</MudText>
+                        <MudText Typo="Typo.h5" Class="fw-extrabold" Style="color: #c5a059;">
+                            @_cases.Count قضية | @_powerOfAttorneys.Count توكيل
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">الملفات المسجلة بالنظام</MudText>
+                    </div>
+                    <MudAvatar Variant="Variant.Outlined" Size="Size.Medium" Style="border-color: #c5a059;">
+                        <MudIcon Icon="@Icons.Material.Filled.FolderSpecial" Style="color: #c5a059;" />
+                    </MudAvatar>
+                </div>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Tabs for Details: Cases, Financials, Power of Attorney, Profile (Enriched Generous Padding) -->
+    <MudCard Elevation="0" Class="glass-card border mb-6 pa-4 pa-md-6">
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true">
+            <!-- Tab 1: Client Cases List -->
+            <MudTabPanel Text="قضايا الموكل المنظورة" Icon="@Icons.Material.Filled.Gavel" BadgeData="@_cases.Count" BadgeColor="Color.Primary">
+                <div class="pa-3 pa-md-4">
+                    <div class="d-flex align-center justify-space-between mb-4">
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="fw-bold text-primary">سجل القضايا والدعاوى القضائية</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">كافة الملفات والمراحل الإجرائية المنظورة بالمحاكم</MudText>
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewCaseDialog" Class="fw-bold">
+                            إضافة قضية
+                        </MudButton>
+                    </div>
+
+                    @if (_cases.Count == 0)
+                    {
+                        <div class="pa-10 text-center rounded-xl border" style="background: rgba(197, 160, 89, 0.03);">
+                            <MudIcon Icon="@Icons.Material.Filled.FolderOff" Size="Size.Large" Color="Color.Secondary" Class="mb-2 opacity-50" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="fw-bold">لا توجد قضايا مسجلة لهذا الموكل حالياً</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTable Items="@_cases" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="border rounded-xl">
+                            <HeaderContent>
+                                <MudTh>رقم القضية</MudTh>
+                                <MudTh>موضوع القضية</MudTh>
+                                <MudTh>نوع القضية</MudTh>
+                                <MudTh>المحكمة / الدائرة</MudTh>
+                                <MudTh>تاريخ الفتح</MudTh>
+                                <MudTh>الحالة</MudTh>
+                                <MudTh Style="text-align: center;">التفاصيل</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="رقم القضية"><span class="fw-bold text-primary">@context.InternalNumber</span></MudTd>
+                                <MudTd DataLabel="الموضوع"><span class="fw-semibold">@context.Title</span></MudTd>
+                                <MudTd DataLabel="النوع">@context.CaseTypeName</MudTd>
+                                <MudTd DataLabel="المحكمة">@(context.CourtName ?? "-") / @(context.Circuit ?? "-")</MudTd>
+                                <MudTd DataLabel="التاريخ">@context.OpenDate.ToString("yyyy/MM/dd")</MudTd>
+                                <MudTd DataLabel="الحالة">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Style="@($"background-color: {context.CaseStatusColor}; color: white;")" Class="fw-bold">
+                                        @context.CaseStatusName
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd Style="text-align: center;">
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Href="@($"cases/{context.Id}")" EndIcon="@Icons.Material.Filled.ArrowBack" Class="fw-bold">
+                                        عرض الملف
+                                    </MudButton>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </div>
+            </MudTabPanel>
+
+            <!-- Tab 2: Financial Register (Fee Agreements & Payments) -->
+            <MudTabPanel Text="السجل المالي والحسابات" Icon="@Icons.Material.Filled.Payments" BadgeData="@($"{_remainingBalance:N0} ج.م")" BadgeColor="@(_remainingBalance > 0 ? Color.Error : Color.Success)">
+                <div class="pa-3 pa-md-4">
+                    <MudGrid Spacing="4">
+                        <!-- Fee Agreements Section -->
+                        <MudItem xs="12" md="6">
+                            <MudCard Elevation="0" Class="border rounded-xl pa-4">
+                                <div class="d-flex align-center justify-space-between mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1" Class="fw-bold text-primary">عقود الأتعاب والاتفاقيات</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">المبالغ المستحقة بموجب العقود</MudText>
+                                    </div>
+                                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewFeeAgreementDialog" Class="fw-bold">
+                                        عقد جديد
+                                    </MudButton>
+                                </div>
+                                @if (_agreements.Count == 0)
+                                {
+                                    <div class="pa-8 text-center">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">لا توجد عقود أتعاب مسجلة</MudText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <MudTable Items="@_agreements" Dense="true" Hover="true" Elevation="0">
+                                        <HeaderContent>
+                                            <MudTh>نوع الاتفاق</MudTh>
+                                            <MudTh>المبلغ الكلي</MudTh>
+                                            <MudTh>المدفوع</MudTh>
+                                            <MudTh>التاريخ</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd DataLabel="النوع"><span class="fw-bold">@context.AgreementType</span></MudTd>
+                                            <MudTd DataLabel="الكلي"><span class="fw-extrabold text-primary">@context.TotalAmount.ToString("N0") ج.م</span></MudTd>
+                                            <MudTd DataLabel="المدفوع"><span class="fw-bold text-success">@context.PaidAmount.ToString("N0") ج.م</span></MudTd>
+                                            <MudTd DataLabel="التاريخ">@context.StartDate.ToString("yyyy/MM/dd")</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                }
+                            </MudCard>
+                        </MudItem>
+
+                        <!-- Payments Section -->
+                        <MudItem xs="12" md="6">
+                            <MudCard Elevation="0" Class="border rounded-xl pa-4">
+                                <div class="d-flex align-center justify-space-between mb-3">
+                                    <div>
+                                        <MudText Typo="Typo.subtitle1" Class="fw-bold text-success">سندات السداد والتحصيل</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary">سجل المقبوضات المالية</MudText>
+                                    </div>
+                                    <MudButton Variant="Variant.Text" Color="Color.Success" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewPaymentDialog" Class="fw-bold">
+                                        سند جديد
+                                    </MudButton>
+                                </div>
+                                @if (_payments.Count == 0)
+                                {
+                                    <div class="pa-8 text-center">
+                                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="fw-bold">لا توجد مدفوعات مسجلة</MudText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <MudTable Items="@_payments" Dense="true" Hover="true" Elevation="0">
+                                        <HeaderContent>
+                                            <MudTh>المبلغ</MudTh>
+                                            <MudTh>طريقة الدفع</MudTh>
+                                            <MudTh>رقم المرجع</MudTh>
+                                            <MudTh>تاريخ الدفع</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd DataLabel="المبلغ"><span class="fw-extrabold text-success">@context.Amount.ToString("N0") ج.م</span></MudTd>
+                                            <MudTd DataLabel="الطريقة"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Success">@context.PaymentMethod</MudChip></MudTd>
+                                            <MudTd DataLabel="المرجع">@(context.ReferenceNumber ?? "-")</MudTd>
+                                            <MudTd DataLabel="التاريخ">@context.PaymentDate.ToString("yyyy/MM/dd")</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                }
+                            </MudCard>
+                        </MudItem>
+                    </MudGrid>
+                </div>
+            </MudTabPanel>
+
+            <!-- Tab 3: Power of Attorney -->
+            <MudTabPanel Text="التوكيلات والتفويضات" Icon="@Icons.Material.Filled.AssignmentTurnedIn" BadgeData="@_powerOfAttorneys.Count">
+                <div class="pa-3 pa-md-4">
+                    <div class="d-flex align-center justify-space-between mb-4">
+                        <div>
+                            <MudText Typo="Typo.subtitle1" Class="fw-bold text-primary">سجل الوكالات الشرعية والتفويضات الرسمية</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">بيانات التوثيق وتواريخ الصلاحية</MudText>
+                        </div>
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenNewPowerOfAttorneyDialog" Class="fw-bold">
+                            إضافة توكيل
+                        </MudButton>
+                    </div>
+
+                    @if (_powerOfAttorneys.Count == 0)
+                    {
+                        <div class="pa-10 text-center rounded-xl border" style="background: rgba(197, 160, 89, 0.03);">
+                            <MudIcon Icon="@Icons.Material.Filled.AssignmentLate" Size="Size.Large" Color="Color.Secondary" Class="mb-2 opacity-50" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="fw-bold">لا توجد وكالات موثقة لهذا الموكل</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTable Items="@_powerOfAttorneys" Dense="true" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="border rounded-xl">
+                            <HeaderContent>
+                                <MudTh>رقم الوكالة</MudTh>
+                                <MudTh>جهة التوثيق</MudTh>
+                                <MudTh>تاريخ الإصدار</MudTh>
+                                <MudTh>تاريخ الانتهاء</MudTh>
+                                <MudTh>الحالة</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="رقم الوكالة"><span class="fw-bold text-primary">@context.PowerNumber</span></MudTd>
+                                <MudTd DataLabel="جهة التوثيق">@(context.NotaryName ?? "-")</MudTd>
+                                <MudTd DataLabel="الإصدار">@context.IssueDate.ToString("yyyy/MM/dd")</MudTd>
+                                <MudTd DataLabel="الانتهاء">@(context.ExpiryDate?.ToString("yyyy/MM/dd") ?? "سارية غير محدودة")</MudTd>
+                                <MudTd DataLabel="الحالة">
+                                    <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Error)" Variant="Variant.Filled">
+                                        @(context.IsActive ? "سارية" : "منتهية")
+                                    </MudChip>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </div>
+            </MudTabPanel>
+
+            <!-- Tab 4: Full Profile Details (Compact & Sleek Grid) -->
+            <MudTabPanel Text="البيانات والمعلومات العامة" Icon="@Icons.Material.Filled.Badge">
+                <div class="pa-3 pa-md-4">
+                    <MudGrid Spacing="2">
+                        <!-- Name -->
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">اسم الموكل / الكيان</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold text-primary">
+                                    @(_client.ClientType == ClientType.Company ? _client.CompanyName : _client.FullName)
+                                </MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- National ID / Commercial Register -->
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">
+                                    @(_client.ClientType == ClientType.Company ? "رقم السجل التجاري" : "رقم الهوية الوطنية / الإقامة")
+                                </MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">
+                                    @(_client.ClientType == ClientType.Company ? _client.CommercialRegister ?? "-" : _client.NationalId ?? "-")
+                                </MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- Phone -->
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">رقم الهاتف الأساسي</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">@_client.Phone</MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- Mobile -->
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">رقم الجوال الإضافي</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">@(_client.Mobile ?? "-")</MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- Email -->
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">البريد الإلكتروني</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">@(_client.Email ?? "-")</MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- City -->
+                        <MudItem xs="12" sm="6" md="4">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">المدينة والمنطقة</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">@(_client.City ?? "-")</MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- Address -->
+                        <MudItem xs="12" md="6">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">العنوان الوطني / التفصيلي</MudText>
+                                <MudText Typo="Typo.body2" Class="fw-bold">@(_client.Address ?? "-")</MudText>
+                            </div>
+                        </MudItem>
+
+                        <!-- Notes -->
+                        <MudItem xs="12" md="6">
+                            <div class="pa-3 rounded-lg border surface-hover h-100" style="background: rgba(197, 160, 89, 0.03);">
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-block mb-1">ملاحظات وسجل العميل</MudText>
+                                <MudText Typo="Typo.body2">@(_client.Notes ?? "لا توجد ملاحظات مدونة")</MudText>
+                            </div>
+                        </MudItem>
+                    </MudGrid>
+                </div>
+            </MudTabPanel>
+        </MudTabs>
+    </MudCard>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private bool _isLoading = true;
+    private ClientDetailsDto? _client;
+    private List<CaseDto> _cases = [];
+    private List<FeeAgreementDto> _agreements = [];
+    private List<PaymentDto> _payments = [];
+    private List<PowerOfAttorneyDto> _powerOfAttorneys = [];
+
+    private decimal _totalAgreements => _agreements.Sum(a => a.TotalAmount);
+    private decimal _totalPaid => _payments.Sum(p => p.Amount);
+    private decimal _remainingBalance => Math.Max(0, _totalAgreements - _totalPaid);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClientDetails();
+    }
+
+    private async Task LoadClientDetails()
+    {
+        _isLoading = true;
+        try
+        {
+            var clientResult = await Mediator.Send(new GetClientByIdQuery(Id));
+            if (clientResult.IsSuccess && clientResult.Value != null)
+            {
+                _client = clientResult.Value;
+
+                var casesTask = Mediator.Send(new GetCasesQuery(ClientId: Id, PageSize: 100));
+                var agreementsTask = Mediator.Send(new GetFeeAgreementsQuery(ClientId: Id, PageSize: 100));
+                var paymentsTask = Mediator.Send(new GetPaymentsQuery(ClientId: Id, PageSize: 100));
+                var poaTask = Mediator.Send(new GetPowerOfAttorneysQuery(ClientId: Id, PageSize: 100));
+
+                await Task.WhenAll(casesTask, agreementsTask, paymentsTask, poaTask);
+
+                if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
+                    _cases = casesTask.Result.Value.ToList();
+
+                if (agreementsTask.Result.IsSuccess && agreementsTask.Result.Value != null)
+                    _agreements = agreementsTask.Result.Value.ToList();
+
+                if (paymentsTask.Result.IsSuccess && paymentsTask.Result.Value != null)
+                    _payments = paymentsTask.Result.Value.ToList();
+
+                if (poaTask.Result.IsSuccess && poaTask.Result.Value != null)
+                    _powerOfAttorneys = poaTask.Result.Value.ToList();
+            }
+            else
+            {
+                _client = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ أثناء تحميل تفاصيل الموكل: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OpenEditClientDialog()
+    {
+        if (_client is null) return;
+        var clientDto = new ClientDto(
+            _client.Id,
+            _client.ClientType,
+            _client.FullName,
+            _client.CompanyName,
+            _client.NationalId,
+            _client.CommercialRegister,
+            _client.Phone,
+            _client.Mobile,
+            _client.Email,
+            _client.Address,
+            _client.City,
+            _client.Notes,
+            _client.IsActive,
+            _client.CreatedAt);
+
+        var parameters = new DialogParameters { ["ClientToEdit"] = clientDto };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<ClientFormDialog>("تعديل بيانات الموكل", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadClientDetails();
+    }
+
+    private async Task OpenNewCaseDialog()
+    {
+        var parameters = new DialogParameters { ["DefaultClientId"] = (Guid?)Id };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Large, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateCaseDialog>("فتح ملف قضية جديدة للموكل", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadClientDetails();
+    }
+
+    private async Task OpenNewFeeAgreementDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreateFeeAgreementDialog>("إنشاء عقد أتعاب جديد للموكل", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadClientDetails();
+    }
+
+    private async Task OpenNewPaymentDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePaymentDialog>("تسجيل سند قبض جديد", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadClientDetails();
+    }
+
+    private async Task OpenNewPowerOfAttorneyDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePowerOfAttorneyDialog>("إضافة توكيل رسمي جديد للموكل", options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled) await LoadClientDetails();
+    }
+}

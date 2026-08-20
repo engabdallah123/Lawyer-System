@@ -6,14 +6,45 @@
 @using global::App.Application.Lookups.DTOs
 @using global::App.Application.Lookups.Queries.GetDocumentTypes
 @using global::App.Domain.Clients.Enums
+@using Microsoft.AspNetCore.Http
+@using Shared.Application.IService
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
+@inject IFileService FileService
 @inject CustomAuthenticationStateProvider AuthStateProvider
 
 <MudDialog>
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="_isValid">
             <MudGrid>
+                <!-- Real File Upload Box -->
+                <MudItem xs="12">
+                    <MudPaper Outlined="true" Class="pa-4 border-dashed rounded-lg bg-surface-subtle text-center">
+                        <InputFile id="docFileInput" OnChange="OnFileSelected" class="d-none" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xlsx,.txt" />
+                        <MudButton HtmlTag="label"
+                                   for="docFileInput"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   Class="mb-2">
+                            اختيار مستند / ملف من جهازك
+                        </MudButton>
+
+                        @if (_selectedBrowserFile != null)
+                        {
+                            <div class="d-flex align-center justify-center gap-2 mt-2">
+                                <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Color="Color.Success" Size="Size.Small" />
+                                <MudText Typo="Typo.body2" Class="fw-bold text-success">@_selectedBrowserFile.Name</MudText>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info">@FormatFileSize(_selectedBrowserFile.Size)</MudChip>
+                            </div>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">الصيغ المدعومة: PDF, Word (doc/docx), صور, Excel (الحد الأقصى: 50 ميجابايت)</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+
                 <!-- Document Name -->
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_name"
@@ -70,24 +101,6 @@
                     </MudSelect>
                 </MudItem>
 
-                <!-- File Picker Simulation / Upload info -->
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_fileName"
-                                  Label="اسم الملف مع الامتداد *"
-                                  Required="true"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense"
-                                  Placeholder="مثال: مذكرة_دفاع_اولى.pdf" />
-                </MudItem>
-
-                <MudItem xs="12" md="6">
-                    <MudTextField @bind-Value="_filePath"
-                                  Label="المسار أو الرابط التخزيني *"
-                                  Required="true"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense" />
-                </MudItem>
-
                 <!-- Description & Notes -->
                 <MudItem xs="12">
                     <MudTextField @bind-Value="_description"
@@ -105,11 +118,11 @@
         <MudButton Color="Color.Primary"
                    Variant="Variant.Filled"
                    OnClick="Submit"
-                   Disabled="@(!_isValid || _isSaving)">
+                   Disabled="@(!_isValid || _isSaving || _selectedBrowserFile == null)">
             @if (_isSaving)
             {
                 <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
-                <span>جاري الحفظ...</span>
+                <span>جاري رفع وحفظ المستند...</span>
             }
             else
             {
@@ -134,9 +147,8 @@
     private int? _documentTypeId;
     private Guid? _caseId;
     private Guid? _clientId;
-    private string _fileName = "مستند_قانوني.pdf";
-    private string _filePath = "/uploads/documents/doc_" + Guid.NewGuid().ToString("N")[..8] + ".pdf";
     private string? _description;
+    private IBrowserFile? _selectedBrowserFile;
 
     private List<LookupDto> _documentTypes = [];
     private List<CaseDto> _cases = [];
@@ -169,6 +181,25 @@
         }
     }
 
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        if (e.File != null)
+        {
+            _selectedBrowserFile = e.File;
+            if (string.IsNullOrWhiteSpace(_name))
+            {
+                _name = Path.GetFileNameWithoutExtension(e.File.Name);
+            }
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Submit()
@@ -177,21 +208,46 @@
         if (!_isValid)
             return;
 
+        if (_selectedBrowserFile == null)
+        {
+            Snackbar.Add("يرجى اختيار ملف لرفعه أولاً", Severity.Warning);
+            return;
+        }
+
         _isSaving = true;
         var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
 
         try
         {
+            using var ms = new MemoryStream();
+            await _selectedBrowserFile.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024).CopyToAsync(ms);
+            ms.Position = 0;
+
+            IFormFile formFile = new FormFile(ms, 0, ms.Length, _selectedBrowserFile.Name, _selectedBrowserFile.Name)
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = string.IsNullOrEmpty(_selectedBrowserFile.ContentType) ? "application/octet-stream" : _selectedBrowserFile.ContentType
+            };
+
+            var uploadResult = await FileService.UploadFileAsync(formFile, "uploads/documents");
+            if (!uploadResult.IsSuccess)
+            {
+                Snackbar.Add($"فشل رفع الملف: {uploadResult.Error.Name}", Severity.Error);
+                return;
+            }
+
+            var filePath = uploadResult.Value ?? string.Empty;
+
             var command = new CreateDocumentCommand(
                 _caseId,
                 _clientId,
                 _documentTypeId,
                 _name,
                 _description,
-                _filePath,
-                _fileName,
-                "application/pdf",
-                1024 * 512, // 512 KB
+                filePath,
+                _selectedBrowserFile.Name,
+                _selectedBrowserFile.ContentType,
+                _selectedBrowserFile.Size,
                 null,
                 userName);
 
@@ -208,7 +264,7 @@
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+            Snackbar.Add($"حدث خطأ أثناء رفع المستند: {ex.Message}", Severity.Error);
         }
         finally
         {

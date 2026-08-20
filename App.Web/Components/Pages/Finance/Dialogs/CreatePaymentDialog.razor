@@ -3,6 +3,9 @@
 @using global::App.Application.Clients.DTOs
 @using global::App.Application.Clients.Queries.GetClients
 @using global::App.Application.Finance.Commands.CreatePayment
+@using global::App.Application.Finance.DTOs
+@using global::App.Application.Finance.Queries.GetFeeAgreements
+@using global::App.Application.Finance.Queries.GetInvoices
 @using global::App.Domain.Clients.Enums
 @inject IMediator Mediator
 @inject ISnackbar Snackbar
@@ -11,12 +14,13 @@
 <MudDialog>
     <DialogContent>
         <MudForm @ref="_form" @bind-IsValid="_isValid">
-            <MudGrid>
+            <MudGrid Spacing="3">
                 <!-- Client Selection -->
                 <MudItem xs="12" md="6">
                     <MudSelect T="Guid"
                                Label="الموكل المستلم منه *"
-                               @bind-Value="_clientId"
+                               Value="_clientId"
+                               ValueChanged="OnClientChanged"
                                Required="true"
                                RequiredError="يرجى اختيار الموكل"
                                Variant="Variant.Outlined"
@@ -33,7 +37,8 @@
                 <MudItem xs="12" md="6">
                     <MudSelect T="Guid?"
                                Label="القضية المرتبطة (اختياري)"
-                               @bind-Value="_caseId"
+                               Value="_caseId"
+                               ValueChanged="OnCaseChanged"
                                Variant="Variant.Outlined"
                                Margin="Margin.Dense"
                                Clearable="true">
@@ -44,10 +49,45 @@
                     </MudSelect>
                 </MudItem>
 
+                <!-- Linked Invoice Selection (Optional) -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="الفاتورة المراد سدادها (اختياري)"
+                               Value="_invoiceId"
+                               ValueChanged="OnInvoiceChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var inv in _invoices)
+                        {
+                            <MudSelectItem Value="@((Guid?)inv.Id)">
+                                فاتورة #@inv.InvoiceNumber (المتبقي: @inv.RemainingAmount.ToString("N0") ج.م)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Linked Fee Agreement (Optional) -->
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?"
+                               Label="عقد الأتعاب (اختياري)"
+                               @bind-Value="_feeAgreementId"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Clearable="true">
+                        @foreach (var fa in _feeAgreements)
+                        {
+                            <MudSelectItem Value="@((Guid?)fa.Id)">
+                                @fa.AgreementType (المتبقي: @fa.RemainingAmount.ToString("N0") ج.م)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
                 <!-- Amount & Date -->
                 <MudItem xs="12" md="6">
                     <MudNumericField @bind-Value="_amount"
-                                     Label="المبلغ المقبوض (ر.س) *"
+                                     Label="المبلغ المقبوض (ج.م) *"
                                      Required="true"
                                      Min="1"
                                      Format="N2"
@@ -120,12 +160,26 @@
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = default!;
 
+    [Parameter]
+    public Guid? DefaultClientId { get; set; }
+
+    [Parameter]
+    public Guid? DefaultCaseId { get; set; }
+
+    [Parameter]
+    public Guid? DefaultInvoiceId { get; set; }
+
+    [Parameter]
+    public Guid? DefaultFeeAgreementId { get; set; }
+
     private MudForm _form = default!;
     private bool _isValid;
     private bool _isSaving = false;
 
     private Guid _clientId;
     private Guid? _caseId;
+    private Guid? _invoiceId;
+    private Guid? _feeAgreementId;
     private decimal _amount = 1000;
     private DateTime? _paymentDate = DateTime.Today;
     private string _paymentMethod = "تحويل بنكي";
@@ -134,6 +188,8 @@
 
     private List<ClientDto> _clients = [];
     private List<CaseDto> _cases = [];
+    private List<InvoiceDto> _invoices = [];
+    private List<FeeAgreementDto> _feeAgreements = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -147,19 +203,97 @@
             if (clientsTask.Result.IsSuccess && clientsTask.Result.Value != null)
             {
                 _clients = clientsTask.Result.Value.ToList();
-                if (_clients.Count > 0)
-                    _clientId = _clients[0].Id;
             }
 
             if (casesTask.Result.IsSuccess && casesTask.Result.Value != null)
             {
                 _cases = casesTask.Result.Value.ToList();
             }
+
+            if (DefaultClientId.HasValue && DefaultClientId.Value != Guid.Empty)
+            {
+                _clientId = DefaultClientId.Value;
+            }
+            else if (_clients.Count > 0)
+            {
+                _clientId = _clients[0].Id;
+            }
+
+            if (DefaultCaseId.HasValue && DefaultCaseId.Value != Guid.Empty)
+            {
+                _caseId = DefaultCaseId.Value;
+            }
+
+            if (DefaultInvoiceId.HasValue)
+            {
+                _invoiceId = DefaultInvoiceId.Value;
+            }
+
+            if (DefaultFeeAgreementId.HasValue)
+            {
+                _feeAgreementId = DefaultFeeAgreementId.Value;
+            }
+
+            await LoadInvoicesAndAgreements();
         }
         catch (Exception ex)
         {
             Snackbar.Add($"حدث خطأ أثناء تحميل البيانات: {ex.Message}", Severity.Error);
         }
+    }
+
+    private async Task OnClientChanged(Guid clientId)
+    {
+        _clientId = clientId;
+        _invoiceId = null;
+        _feeAgreementId = null;
+        await LoadInvoicesAndAgreements();
+    }
+
+    private async Task OnCaseChanged(Guid? caseId)
+    {
+        _caseId = caseId;
+        _invoiceId = null;
+        _feeAgreementId = null;
+        await LoadInvoicesAndAgreements();
+    }
+
+    private void OnInvoiceChanged(Guid? invoiceId)
+    {
+        _invoiceId = invoiceId;
+        if (invoiceId.HasValue)
+        {
+            var inv = _invoices.FirstOrDefault(i => i.Id == invoiceId.Value);
+            if (inv != null && inv.RemainingAmount > 0)
+            {
+                _amount = inv.RemainingAmount;
+            }
+        }
+    }
+
+    private async Task LoadInvoicesAndAgreements()
+    {
+        try
+        {
+            if (_clientId != Guid.Empty)
+            {
+                var invTask = Mediator.Send(new GetInvoicesQuery(ClientId: _clientId, CaseId: _caseId, PageSize: 50));
+                var faTask = Mediator.Send(new GetFeeAgreementsQuery(ClientId: _clientId, CaseId: _caseId, PageSize: 50));
+
+                await Task.WhenAll(invTask, faTask);
+
+                if (invTask.Result.IsSuccess && invTask.Result.Value != null)
+                {
+                    _invoices = invTask.Result.Value.Where(i => i.RemainingAmount > 0).ToList();
+                }
+
+                if (faTask.Result.IsSuccess && faTask.Result.Value != null)
+                {
+                    _feeAgreements = faTask.Result.Value.Where(f => f.RemainingAmount > 0).ToList();
+                }
+            }
+        }
+        catch { }
     }
 
     private void Cancel() => MudDialog.Cancel();
@@ -178,8 +312,8 @@
             var command = new CreatePaymentCommand(
                 _clientId,
                 _caseId,
-                null,
-                null,
+                _feeAgreementId,
+                _invoiceId,
                 _amount,
                 _paymentDate ?? DateTime.Today,
                 _paymentMethod,
@@ -190,7 +324,7 @@
             var result = await Mediator.Send(command);
             if (result.IsSuccess)
             {
-                Snackbar.Add("تم تسجيل سند القبض والتحصيل بنجاح", Severity.Success);
+                Snackbar.Add("تم تسجيل وتخصيص سند القبض بنجاح", Severity.Success);
                 MudDialog.Close(DialogResult.Ok(true));
             }
             else

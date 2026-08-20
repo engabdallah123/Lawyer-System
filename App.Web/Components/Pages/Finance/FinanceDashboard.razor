@@ -16,13 +16,18 @@
 
 <!-- Header & Quick Action Buttons -->
 <div class="d-flex flex-column flex-md-row align-start align-md-center justify-space-between gap-4 mb-6">
-    <div>
-        <MudText Typo="Typo.h5" Class="fw-bold" Color="Color.Primary">
-            الإدارة المالية والفواتير 💰
-        </MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">
-            متابعة التحصيل، الفواتير الصادرة، سندات القبض، المصروفات وعقود الأتعاب
-        </MudText>
+    <div class="d-flex align-center gap-3">
+        <MudAvatar Size="Size.Large" Class="shadow-sm header-avatar">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Style="color: #c5a059;" />
+        </MudAvatar>
+        <div>
+            <MudText Typo="Typo.h5" Class="fw-extrabold text-primary" Style="letter-spacing: -0.3px;">
+                الإدارة المالية والفواتير
+            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                متابعة التحصيل، الفواتير الصادرة، سندات القبض، المصروفات وعقود الأتعاب
+            </MudText>
+        </div>
     </div>
 
     <div class="d-flex flex-wrap gap-2">
@@ -46,31 +51,31 @@
     <MudItem xs="12" sm="6" md="2">
         <MudCard Elevation="0" Class="glass-card border pa-3">
             <MudText Typo="Typo.caption" Color="Color.Secondary">إجمالي العقود</MudText>
-            <MudText Typo="Typo.h6" Class="fw-bold text-primary">@(_summary?.TotalFeeAgreementsAmount.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-primary">@(_summary?.TotalFeeAgreementsAmount.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ج.م</span></MudText>
         </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="2">
         <MudCard Elevation="0" Class="glass-card border pa-3">
             <MudText Typo="Typo.caption" Color="Color.Secondary">إجمالي المحصل</MudText>
-            <MudText Typo="Typo.h6" Class="fw-bold text-success">@(_summary?.TotalCollectedPayments.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-success">@(_summary?.TotalCollectedPayments.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ج.م</span></MudText>
         </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="3">
         <MudCard Elevation="0" Class="glass-card border pa-3">
             <MudText Typo="Typo.caption" Color="Color.Secondary">المتبقي والذمم المستحقة</MudText>
-            <MudText Typo="Typo.h6" Class="fw-bold text-warning">@(_summary?.TotalOutstandingReceivables.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-warning">@(_summary?.TotalOutstandingReceivables.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ج.م</span></MudText>
         </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="2">
         <MudCard Elevation="0" Class="glass-card border pa-3">
             <MudText Typo="Typo.caption" Color="Color.Secondary">المصروفات القضائية</MudText>
-            <MudText Typo="Typo.h6" Class="fw-bold text-danger">@(_summary?.TotalExpenses.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-danger">@(_summary?.TotalExpenses.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ج.م</span></MudText>
         </MudCard>
     </MudItem>
     <MudItem xs="12" sm="6" md="3">
         <MudCard Elevation="0" Class="glass-card border pa-3">
             <MudText Typo="Typo.caption" Color="Color.Secondary">صافي الإيراد التشغيلي</MudText>
-            <MudText Typo="Typo.h6" Class="fw-bold text-info">@(_summary?.NetRevenue.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ر.س</span></MudText>
+            <MudText Typo="Typo.h6" Class="fw-bold text-info">@(_summary?.NetRevenue.ToString("N0") ?? "0") <span style="font-size: 0.75rem;">ج.م</span></MudText>
         </MudCard>
     </MudItem>
 </MudGrid>
@@ -99,19 +104,35 @@
                             <MudTh>تاريخ الاستحقاق</MudTh>
                             <MudTh>الإجمالي</MudTh>
                             <MudTh>المسدد</MudTh>
+                            <MudTh>المتبقي</MudTh>
                             <MudTh>الحالة</MudTh>
+                            <MudTh Style="text-align: center;">الإجراءات</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            <MudTd DataLabel="رقم الفاتورة"><span class="fw-bold text-primary">@context.InvoiceNumber</span></MudTd>
+                            <MudTd DataLabel="رقم الفاتورة"><span class="fw-bold text-primary">#@context.InvoiceNumber</span></MudTd>
                             <MudTd DataLabel="الموكل">@context.ClientName</MudTd>
                             <MudTd DataLabel="الإصدار">@context.IssueDate.ToString("yyyy/MM/dd")</MudTd>
                             <MudTd DataLabel="الاستحقاق">@(context.DueDate?.ToString("yyyy/MM/dd") ?? "-")</MudTd>
-                            <MudTd DataLabel="الإجمالي"><span class="fw-bold">@context.TotalAmount.ToString("N2") ر.س</span></MudTd>
-                            <MudTd DataLabel="المسدد"><span class="text-success">@context.PaidAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="الإجمالي"><span class="fw-bold">@context.TotalAmount.ToString("N2") ج.م</span></MudTd>
+                            <MudTd DataLabel="المسدد"><span class="text-success">@context.PaidAmount.ToString("N2") ج.م</span></MudTd>
+                            <MudTd DataLabel="المتبقي"><span class="fw-bold @(context.RemainingAmount > 0 ? "text-error" : "text-success")">@context.RemainingAmount.ToString("N2") ج.م</span></MudTd>
                             <MudTd DataLabel="الحالة">
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Filled" Color="@GetInvoiceStatusColor(context.Status)">
                                     @context.StatusName
                                 </MudChip>
+                            </MudTd>
+                            <MudTd Style="text-align: center;">
+                                <div class="d-flex justify-center align-center gap-1">
+                                    <MudTooltip Text="طباعة / تحميل الفاتورة PDF">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Primary" Size="Size.Small" Href="@($"/api/invoices/{context.Id}/pdf")" Target="_blank" />
+                                    </MudTooltip>
+                                    @if (context.RemainingAmount > 0)
+                                    {
+                                        <MudTooltip Text="تسجيل سند قبض وسداد الفاتورة">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Payments" Color="Color.Success" Size="Size.Small" OnClick="@(() => OpenPaymentForInvoice(context))" />
+                                        </MudTooltip>
+                                    }
+                                </div>
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -143,7 +164,7 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="الموكل"><span class="fw-bold">@context.ClientName</span></MudTd>
-                            <MudTd DataLabel="المبلغ"><span class="fw-bold text-success">@context.Amount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="المبلغ"><span class="fw-bold text-success">@context.Amount.ToString("N2") ج.م</span></MudTd>
                             <MudTd DataLabel="الطريقة"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.PaymentMethod</MudChip></MudTd>
                             <MudTd DataLabel="المرجع">@(context.ReferenceNumber ?? "-")</MudTd>
                             <MudTd DataLabel="التاريخ">@context.PaymentDate.ToString("yyyy/MM/dd")</MudTd>
@@ -178,7 +199,7 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd DataLabel="نوع المصروف"><MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">@context.ExpenseType</MudChip></MudTd>
-                            <MudTd DataLabel="المبلغ"><span class="fw-bold text-danger">@context.Amount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="المبلغ"><span class="fw-bold text-danger">@context.Amount.ToString("N2") ج.م</span></MudTd>
                             <MudTd DataLabel="القضية">@(string.IsNullOrEmpty(context.CaseInternalNumber) ? "عام" : $"{context.CaseInternalNumber} - {context.CaseTitle}")</MudTd>
                             <MudTd DataLabel="القائم بالصرف">@context.PaidBy</MudTd>
                             <MudTd DataLabel="التاريخ">@context.ExpenseDate.ToString("yyyy/MM/dd")</MudTd>
@@ -214,9 +235,9 @@
                         <RowTemplate>
                             <MudTd DataLabel="الموكل"><span class="fw-bold">@context.ClientName</span></MudTd>
                             <MudTd DataLabel="نوع العقد"><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@context.AgreementTypeName</MudChip></MudTd>
-                            <MudTd DataLabel="إجمالي العقد"><span class="fw-bold">@context.TotalAmount.ToString("N2") ر.س</span></MudTd>
-                            <MudTd DataLabel="المسدد"><span class="text-success">@context.PaidAmount.ToString("N2") ر.س</span></MudTd>
-                            <MudTd DataLabel="المتبقي"><span class="text-warning">@context.RemainingAmount.ToString("N2") ر.س</span></MudTd>
+                            <MudTd DataLabel="إجمالي العقد"><span class="fw-bold">@context.TotalAmount.ToString("N2") ج.م</span></MudTd>
+                            <MudTd DataLabel="المسدد"><span class="text-success">@context.PaidAmount.ToString("N2") ج.م</span></MudTd>
+                            <MudTd DataLabel="المتبقي"><span class="text-warning">@context.RemainingAmount.ToString("N2") ج.م</span></MudTd>
                             <MudTd DataLabel="تاريخ البدء">@context.StartDate.ToString("yyyy/MM/dd")</MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -370,6 +391,24 @@
         {
             await LoadSummary();
             await LoadAgreements();
+        }
+    }
+
+    private async Task OpenPaymentForInvoice(InvoiceDto invoice)
+    {
+        var parameters = new DialogParameters
+        {
+            ["DefaultClientId"] = invoice.ClientId,
+            ["DefaultCaseId"] = invoice.CaseId,
+            ["DefaultInvoiceId"] = invoice.Id
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CreatePaymentDialog>($"سداد فاتورة #{invoice.InvoiceNumber}", parameters, options);
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled)
+        {
+            await LoadSummary();
+            await LoadInvoices();
         }
     }
 }

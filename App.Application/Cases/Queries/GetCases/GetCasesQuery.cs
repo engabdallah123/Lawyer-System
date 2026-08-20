@@ -9,5 +9,6 @@ public record GetCasesQuery(
     int? CaseStatusId = null,
     int? CourtId = null,
     bool? IsClosed = null,
+    Guid? ClientId = null,
     int Page = 1,
     int PageSize = 20) : IQuery<IEnumerable<CaseDto>>;

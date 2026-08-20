@@ -1,0 +1,116 @@
+@using global::App.Application.Cases.Commands.AddCaseTimeline
+@inject IMediator Mediator
+@inject ISnackbar Snackbar
+@inject CustomAuthenticationStateProvider AuthStateProvider
+
+<MudDialog Class="glass-card">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                <MudIcon Icon="@Icons.Material.Filled.Timeline" Style="color: #c5a059;" />
+            </MudAvatar>
+            <MudText Typo="Typo.h6" Class="fw-extrabold text-primary">
+                توثيق إجراء / حدث في الجدول الزمني
+            </MudText>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_isValid">
+            <MudGrid Spacing="2" Class="pt-2">
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_title"
+                                  Label="عنوان الإجراء أو الحدث *"
+                                  Required="true"
+                                  RequiredError="عنوان الإجراء مطلوب"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_description"
+                                  Label="تفاصيل ووقائع الإجراء"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudCheckBox @bind-Value="_isImportant"
+                                 Color="Color.Warning"
+                                 Label="حدث هام ونقطة تحول رئيسية في مسار القضية" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">إلغاء</MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Class="btn-gold-gradient px-4"
+                   OnClick="Submit"
+                   Disabled="@(!_isValid || _isSaving)">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ms-2" />
+                <span>جاري الحفظ...</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="me-1" />
+                <span>توثيق الإجراء</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public Guid CaseId { get; set; }
+
+    private MudForm _form = default!;
+    private bool _isValid;
+    private bool _isSaving = false;
+
+    private string _title = string.Empty;
+    private string? _description;
+    private bool _isImportant = false;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_isValid) return;
+
+        _isSaving = true;
+        var userName = AuthStateProvider.CurrentUser?.FullName ?? "SystemUser";
+
+        try
+        {
+            var command = new AddCaseTimelineCommand(CaseId, _title, _description, _isImportant, userName);
+            var result = await Mediator.Send(command);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add("تم توثيق الحدث في مسار القضية بنجاح", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Error.Name, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"حدث خطأ: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}
